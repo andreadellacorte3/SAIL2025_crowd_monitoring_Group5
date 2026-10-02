@@ -1,0 +1,10 @@
+# Same line endings on Windows and Mac, so a commit only shows the lines that really changed
+* text=auto eol=lf
+
+# Files that are not text
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.pdf binary
+*.xlsx binary
+*.zip binary
