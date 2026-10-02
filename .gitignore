@@ -1,0 +1,23 @@
+# Data from Brightspace: never on GitHub (not ours to publish, and too large)
+data/
+*.zip
+SAIL2025_LVMA_data_*.csv
+TomTom_data_*.csv
+Vesselposition_data_*.csv
+sensor-location.xlsx
+NWB_roads/
+
+# Python and Jupyter leftovers
+__pycache__/
+.ipynb_checkpoints/
+.pytest_cache/
+.venv/
+venv/
+
+# Streamlit secrets
+.streamlit/secrets.toml
+
+# Operating system files
+.DS_Store
+Thumbs.db
+desktop.ini
