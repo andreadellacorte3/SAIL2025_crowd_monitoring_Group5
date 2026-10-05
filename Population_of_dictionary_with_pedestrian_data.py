@@ -6,7 +6,7 @@ def main():
 
     data = {}
     for sensor_name in df.index:
-        x,y = map(float,df.loc[i,"Lat/Long"].split(","))
+        x,y = map(float,df.loc[sensor_name,"Lat/Long"].split(","))
         data[sensor_name] = {
             "x": x,
             "y": y
@@ -29,21 +29,21 @@ def main():
         "GASA-06-B_95"
     )
 
-    def retrieve_all_counts(i:int,data:dict = data) -> dict:
+    def retrieve_all_counts(i:int, data:dict = data) -> dict:
         """
         Given the number of digits of the orientation in degrees i the data dictionary will be populated
         """
-        if "orientation" not in data[line[:-i-1]]:
-            data[line[:-i-1]]["orientation"] = {}
-        data[line[:-i-1]]["orientation"][line[-i:]] = list(df[line])
+        if "orientation" not in data[column[:-i-1]]:
+            data[column[:-i-1]]["orientation"] = {}
+        data[column[:-i-1]]["orientation"][column[-i:]] = list(df[column])
 
-    for line in df:
-        if (line in non_sensors) or (line in sensors_not_in_sensor_location): continue
+    for column in df:
+        if (column in non_sensors) or (column in sensors_not_in_sensor_location): continue
 
-        if str(line[-3:]).isdigit():
+        if str(column[-3:]).isdigit():
             retrieve_all_counts(3)
             continue
-        if str(line[-2:]).isdigit():
+        if str(column[-2:]).isdigit():
             retrieve_all_counts(2)
             continue
         retrieve_all_counts(1)
