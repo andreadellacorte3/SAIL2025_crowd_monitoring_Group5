@@ -5,9 +5,9 @@ def main():
 
 
     data = {}
-    for i in df.index:
+    for sensor_name in df.index:
         x,y = map(float,df.loc[i,"Lat/Long"].split(","))
-        data[i] = {
+        data[sensor_name] = {
             "x": x,
             "y": y
         }
