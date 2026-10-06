@@ -1,5 +1,6 @@
 # Data from Brightspace: never on GitHub (not ours to publish, and too large)
-data/
+data/*
+!data/external/
 *.zip
 SAIL2025_LVMA_data_*.csv
 TomTom_data_*.csv
