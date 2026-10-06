@@ -2,14 +2,15 @@
 
 This is the group project of Group 5 for TIL6022 Python Programming at TU Delft, 2026-2027. We use the pedestrian counts measured during SAIL Amsterdam 2025 (20 to 24 August) to build a dashboard that shows crowd managers where and when walkways around the IJ came close to critical conditions, and we study how other factors, such as rain and train arrivals, affect the crowds. The project is joint with TIL4030 Research and Design Methods, where the same group designs the dashboard on paper.
 
-Status: project proposal, 2 October 2026. The final report is due on 6 November 2026.
+Status: work in progress. The proposal dates from 2 October 2026 and the final report is due on 6 November 2026.
 
 ## What is in this repository
 
 - `SAIL2025_crowd_monitoring.ipynb`: the project notebook. It holds the proposal now and will become the final report.
-- `SAIL2025_crowd_monitoring.pdf` and `SAIL2025_crowd_monitoring.html`: exports of the notebook, readable without Python.
+- `SAIL2025_crowd_monitoring.pdf`: a PDF export of the notebook, readable without Python.
 - `requirements.txt`: the Python packages the project needs.
-- `lab8_2026_2.ipynb` and `git_diagram_hand.jpg`: our Lab 8 assignment. The repository started as our Lab 8 group repository, and these two files stay here until Lab 8 has been graded.
+- `Population_of_dictionary_with_pedestrian_data.py`: a first script that reads the sensor counts and locations.
+- `lab8/`: our Lab 8 group assignment (part 2), with its notebook and Git diagram. This repository started as the Lab 8 repository of our group.
 
 ## How to run the project
 
