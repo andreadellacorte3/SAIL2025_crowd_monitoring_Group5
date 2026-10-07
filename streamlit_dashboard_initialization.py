@@ -62,7 +62,7 @@ for sensor in data:
 
 
 # Creates the layer to plot based on the previous data
-layer = pdk.Layer(
+crowd_count_layer = pdk.Layer(
     "ScatterplotLayer",
     for_pdk_layer,
     pickable=True,
@@ -79,13 +79,16 @@ layer = pdk.Layer(
     get_line_color=[0, 0, 0],
 )
 
-
+layers = []
 if "Sensors" in selected_layers:
-    # this sets the default initial view point
-    amsterdam = pdk.ViewState(latitude=52.380450, longitude = 4.900310, zoom=11) 
-    # The map is plotted
-    st.pydeck_chart(pdk.Deck(
-        layers=[layer],
-        tooltip={"text": "{name} to {count}"},
-        initial_view_state = amsterdam
-    ))
+    layers.append(crowd_count_layer)
+if "Vessels" in selected_layers:
+    pass # layers.append(vessels_layer) when vessels_layer is defined
+# this sets the default initial view point
+amsterdam = pdk.ViewState(latitude=52.380450, longitude = 4.900310, zoom=11) 
+# The map is plotted
+st.pydeck_chart(pdk.Deck(
+    layers=layers,
+    tooltip={"text": "{name} to {count}"},
+    initial_view_state = amsterdam
+))
