@@ -9,15 +9,21 @@ import datetime
 import pydeck as pdk
 from Population_of_dictionary_with_pedestrian_data import load_data
 import math
+from find_start_end_datetimes import load_program
 
 # set the streamlit app main page configuration
 st.set_page_config(page_title="SAIL 2025 crowd monitoring dashboard", layout="wide")
 st.title("SAIL 2025 crowd monitoring dashboard", anchor = False)
 st.sidebar.header("Filters")
 
+
+
+crowd_count_data = load_data()
+program  = load_program()
+
 #These are to change based on the catalogue
-min_date = "2025-08-20"
-max_date = "2025-08-24"
+min_date = min(program["start_datetime"].dt.date)
+max_date = max(program["end_datetime"].dt.date)
 
 chosen_date = st.sidebar.date_input(
     label = "Date", 
@@ -27,34 +33,44 @@ chosen_date = st.sidebar.date_input(
     )   
 
 #These are to change based on the catalogue and the current day
-min_time = datetime.time(8,0)
-max_time = datetime.time(17,0)
+min_time = min(program[
+    program["start_datetime"].dt.date == chosen_date
+    ]["start_datetime"].dt.time)
+
+max_time = max(program[
+    program["end_datetime"].dt.date == chosen_date
+    ]["end_datetime"].dt.time)
 
 chosen_time = st.sidebar.slider(
-    value = datetime.time(14,0),
+    value = datetime.time(14),
     label = "Time",
     format = "HH:mm",
     min_value = min_time,
     max_value = max_time,
-    step = datetime.timedelta(minutes = 3)
+    step = datetime.timedelta(minutes = 3),
+    # key = "saved_time"
     )
+
+chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
 
 
 st.header("IJ's map")
 selected_layers = st.pills("Map layers",options = ["Sensors", "Vessels"],selection_mode = "multi")
 
-data = load_data()
+
 
 # The following logic must be eventually moved to a different file.
+# The metric is now only to represent something, the actual data will be 
+# calculated later
 for_pdk_layer = []
-for sensor in data:
+for sensor in crowd_count_data:
     total_count = 0
-    for counts in data[sensor]["orientation"].values():
+    for counts in crowd_count_data[sensor]["orientation"].values():
         total_count += sum(counts)
     for_pdk_layer.append(
         {
             "name": sensor,
-            "pos": list((data[sensor]["y"],data[sensor]["x"])),
+            "pos": list((crowd_count_data[sensor]["y"],crowd_count_data[sensor]["x"])),
             "count_to_visualize": math.sqrt(total_count)/25,
             "count": total_count
         }
@@ -92,3 +108,13 @@ st.pydeck_chart(pdk.Deck(
     tooltip={"text": "{name} to {count}"},
     initial_view_state = amsterdam
 ))
+
+
+
+
+
+st.header("Ongoing events")
+st.dataframe(program[
+    (program["start_datetime"] <= chosen_datetime) & 
+    (program["end_datetime"] >= chosen_datetime)]
+    [["Start","End"]])

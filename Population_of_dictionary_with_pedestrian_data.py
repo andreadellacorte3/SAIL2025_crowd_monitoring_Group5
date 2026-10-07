@@ -1,6 +1,9 @@
+import streamlit as st
+
+@st.cache_data(show_spinner = False)
 def load_data(
-        sensor_location_path:str = "sensor-location.xlsx", 
-        flow_data_path:str = "SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv"
+        sensor_location_path:str = "data/sensor-location.xlsx", 
+        flow_data_path:str = "data/SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv"
         ) -> dict:
     import pandas as pd
     df = pd.read_excel(sensor_location_path)
