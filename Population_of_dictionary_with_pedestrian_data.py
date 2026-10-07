@@ -1,6 +1,12 @@
-def main():
+import streamlit as st
+
+@st.cache_data(show_spinner = False)
+def load_data(
+        sensor_location_path:str = "data/sensor-location.xlsx", 
+        flow_data_path:str = "data/SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv"
+        ) -> dict:
     import pandas as pd
-    df = pd.read_excel("sensor-location.xlsx")
+    df = pd.read_excel(sensor_location_path)
     df = df.set_index("Objectummer")
 
 
@@ -12,7 +18,7 @@ def main():
             "y": y
         }
 
-    df = pd.read_csv("SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv")
+    df = pd.read_csv(flow_data_path)
 
     non_sensors = (
         "hour",
@@ -47,7 +53,4 @@ def main():
             retrieve_all_counts(2)
             continue
         retrieve_all_counts(1)
-
-
-if __name__ == "__main__":
-    main()
+    return data
