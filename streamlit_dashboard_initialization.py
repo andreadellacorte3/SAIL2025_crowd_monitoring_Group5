@@ -125,7 +125,7 @@ update_visuals()
 
 
 
-if st.sidebar.button("Play"):
+if st.sidebar.button("▶  Play"):
     today = datetime.date.today()
     max_dt = datetime.datetime.combine(today,max_time)
     chosen_dt = datetime.datetime.combine(today,chosen_time)
@@ -141,13 +141,3 @@ if st.sidebar.button("Play"):
         )
         update_visuals(chosen_time)
         time.sleep(0.5)
-
-
-
-
-
-# The following logic must be eventually moved to a different file.
-# The metric is now only to represent something, the actual data will be 
-# calculated later
-
-
