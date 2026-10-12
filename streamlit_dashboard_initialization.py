@@ -122,10 +122,18 @@ def update_visuals(chosen_time = chosen_time):
 
         
 update_visuals()
+col1, col2 = st.sidebar.columns(2)
+play = col1.empty()
+stop = col2.button("⏹  Stop")
+speed = st.sidebar.number_input(
+    "Play speed",
+    value = 1.0,
+    min_value = 0.0,
+    step = 1.0
+)
 
 
-
-if st.sidebar.button("▶  Play"):
+if play.button("▶  Play"):
     today = datetime.date.today()
     max_dt = datetime.datetime.combine(today,max_time)
     chosen_dt = datetime.datetime.combine(today,chosen_time)
@@ -140,4 +148,5 @@ if st.sidebar.button("▶  Play"):
             step=datetime.timedelta(minutes=3)
         )
         update_visuals(chosen_time)
-        time.sleep(0.5)
+        time.sleep(0.5/speed)
+
