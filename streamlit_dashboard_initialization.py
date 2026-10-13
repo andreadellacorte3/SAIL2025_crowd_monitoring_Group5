@@ -46,7 +46,7 @@ def update_visuals(chosen_time: datetime.time):
         # The map is plotted
         st.pydeck_chart(pdk.Deck(
             layers=layers,
-            tooltip={"text": "{name} to {count}"},
+            tooltip={"text": "{name_without_orientation}"},
             initial_view_state = amsterdam
         ))
 
