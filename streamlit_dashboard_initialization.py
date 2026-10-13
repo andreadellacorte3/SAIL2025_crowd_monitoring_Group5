@@ -11,11 +11,61 @@ from Population_of_dictionary_with_pedestrian_data import load_data
 import math
 from find_start_end_datetimes import load_program
 import time
+
+
+def update_visuals(chosen_time: datetime.time):
+    chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
+
+
+    with visuals.container():
+        # Creates the layer to plot based on the previous data
+        crowd_count_layer = pdk.Layer(
+            "ScatterplotLayer",
+            crowd_sensor_position_data,
+            pickable=True,
+            opacity=0.8,
+            stroked=True,
+            filled=True,
+            radius_scale=6,
+            radius_min_pixels=1,
+            radius_max_pixels=7,
+            line_width_min_pixels=1,
+            get_position= "[long,lat]",
+            get_radius=100,
+            get_fill_color=[255, 140, 0],
+            get_line_color=[0, 0, 0],
+        )
+
+        layers = []
+        if "Sensors" in selected_layers:
+            layers.append(crowd_count_layer)
+        if "Vessels" in selected_layers:
+            pass # layers.append(vessels_layer) when vessels_layer is defined
+        # this sets the default initial view point
+        amsterdam = pdk.ViewState(latitude=52.380450, longitude = 4.900310, zoom=11) 
+        # The map is plotted
+        st.pydeck_chart(pdk.Deck(
+            layers=layers,
+            tooltip={"text": "{name_without_orientation}"},
+            initial_view_state = amsterdam
+        ))
+
+
+
+
+
+        st.header("Ongoing events")
+        st.dataframe(program[
+            (program["start_datetime"] <= chosen_datetime) & 
+            (program["end_datetime"] >= chosen_datetime)]
+            [["Start","End"]])
+        return
+
+
 # set the streamlit app main page configuration
-st.set_page_config(page_title="SAIL 2025 crowd monitoring dashboard", layout="wide")
+st.set_page_config(page_title="SAIL 2025 crowd monitoring dashboard", layout="wide",page_icon = ":sailboat:")
 st.title("SAIL 2025 crowd monitoring dashboard", anchor = False)
 st.sidebar.header("Filters")
-
 
 
 crowd_count_data = load_data()
@@ -54,74 +104,34 @@ chosen_time = time_slider.slider(
     # key = "saved_time"
     )
 
+non_sensors = (
+        "hour",
+        "timestamp",
+        "minute",
+        "day",
+        "month",
+        "weekday",
+        "is_weekend",
+        )
+
+
+transpose = crowd_count_data.loc[["lat","long","name_without_orientation"]].transpose()
+crowd_sensor_position_data = transpose[
+    transpose.index.str.contains("-")
+]
+crowd_sensor_position_data = crowd_sensor_position_data.drop_duplicates()
+
+
+
+
 
 st.header("IJ's map")
 selected_layers = st.pills("Map layers",options = ["Sensors", "Vessels"],selection_mode = "multi")
 visuals = st.empty()
 
-def update_visuals(chosen_time = chosen_time):
-    chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
-
-    for_pdk_layer = []
-    for sensor in crowd_count_data:
-        total_count = 0
-        for counts in crowd_count_data[sensor]["orientation"].values():
-            total_count += sum(counts)
-        for_pdk_layer.append(
-            {
-                "name": sensor,
-                "pos": list((crowd_count_data[sensor]["y"],crowd_count_data[sensor]["x"])),
-                "count_to_visualize": math.sqrt(total_count)/25,
-                "count": total_count
-            }
-        )
-
-    with visuals.container():
-        # Creates the layer to plot based on the previous data
-        crowd_count_layer = pdk.Layer(
-            "ScatterplotLayer",
-            for_pdk_layer,
-            pickable=True,
-            opacity=0.8,
-            stroked=True,
-            filled=True,
-            radius_scale=6,
-            radius_min_pixels=1,
-            radius_max_pixels=100,
-            line_width_min_pixels=1,
-            get_position= "pos",
-            get_radius="count_to_visualize",
-            get_fill_color=[255, 140, 0],
-            get_line_color=[0, 0, 0],
-        )
-
-        layers = []
-        if "Sensors" in selected_layers:
-            layers.append(crowd_count_layer)
-        if "Vessels" in selected_layers:
-            pass # layers.append(vessels_layer) when vessels_layer is defined
-        # this sets the default initial view point
-        amsterdam = pdk.ViewState(latitude=52.380450, longitude = 4.900310, zoom=11) 
-        # The map is plotted
-        st.pydeck_chart(pdk.Deck(
-            layers=layers,
-            tooltip={"text": "{name} to {count}"},
-            initial_view_state = amsterdam
-        ))
-
-
-
-
-
-        st.header("Ongoing events")
-        st.dataframe(program[
-            (program["start_datetime"] <= chosen_datetime) & 
-            (program["end_datetime"] >= chosen_datetime)]
-            [["Start","End"]])
-        return
 
         
-update_visuals()
+update_visuals(chosen_time = chosen_time)
 col1, col2 = st.sidebar.columns(2)
 play = col1.empty()
 stop = col2.button("⏹  Stop")
