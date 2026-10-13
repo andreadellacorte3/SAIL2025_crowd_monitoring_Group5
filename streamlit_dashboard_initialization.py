@@ -12,6 +12,7 @@ import math
 from find_start_end_datetimes import load_program
 import time
 import pandas as pd
+import os
 # set the streamlit app main page configuration
 st.set_page_config(page_title="SAIL 2025 crowd monitoring dashboard", layout="wide")
 st.title("SAIL 2025 crowd monitoring dashboard", anchor = False)
@@ -21,40 +22,87 @@ st.sidebar.header("Filters")
 # i'm just copying some codes already written by matteo and some filters made bymiself 
 #in order to add it to the dashboard
 # --- LOADING AND FILTERING VESSELS ---
-vessels_df = pd.read_csv("../Vesselposition_data_20-24Aug2025.csv")
+@st.cache_data
+def get_processed_vessels():
+    csv_file = "Vesselposition_data_20-24Aug2025.csv"
+    if not os.path.exists(csv_file):
+        csv_file = os.path.join("data", "Vesselposition_data_20-24Aug2025.csv")
 
-# Time conversion
-vessels_df["hourminute"] = (pd.to_datetime(vessels_df["upload-timestamp"], 
-    utc=True, format="ISO8601")
-    .dt.tz_convert("Europe/Amsterdam")
-    .dt.strftime("%H%M")
-    .astype(int))
+    vessels_df = pd.read_csv(csv_file)
 
-# Filter sail destinations
-sail_destinations = vessels_df[
-    vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
-mask_1 = [
-    "Exhibition Vessel", "Frigate", "Museum, Stationary", 
-    "Passenger Ship", "Passenger/Cruise", "Sail Training Ship", 
-    "Sailing Vessel", "Yacht", "Yacht (Sailing)"]
+    # Time conversion
+    vessels_df["hourminute"] = (
+        pd.to_datetime(
+            vessels_df["upload-timestamp"], utc=True, format="ISO8601")
+        .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int))
 
-df_cat = vessels_df[vessels_df["sub-category"].isin(mask_1)]
-df_dest = vessels_df[
-    (vessels_df["sub-category"].isna()) & 
-    (vessels_df["destination"].isin(sail_destinations["destination"].unique()))]
+    # Filter sail destinations
+    sail_destinations = vessels_df[
+        vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
+    mask_1 = ["Exhibition Vessel","Frigate","Museum, Stationary",
+        "Passenger Ship","Passenger/Cruise","Sail Training Ship",
+        "Sailing Vessel","Yacht","Yacht (Sailing)",]
 
-# Concatenation
-sail_vessels = pd.concat([df_cat, df_dest]).drop_duplicates().reset_index(drop=True)
- #work in progress from here
+    df_cat = vessels_df[vessels_df["sub-category"].isin(mask_1)]
+    df_dest = vessels_df[(vessels_df["sub-category"].isna())
+        & (vessels_df["destination"].isin(
+                sail_destinations["destination"].unique()))]
+
+    sail_vessels = (
+        pd.concat([df_cat, df_dest]).drop_duplicates().reset_index(drop=True)
+    )
+    ships_with_data = sail_vessels.copy()
+
+    if (
+        "update-time" not in ships_with_data.columns
+        and "upload-timestamp" in ships_with_data.columns
+    ):
+        ships_with_data["update-time"] = ships_with_data["upload-timestamp"]
+
+    ships_with_data["update-time"] = pd.to_datetime(
+        ships_with_data["update-time"]
+    )
+
+    if "speed-in-centimeters-per-second" in ships_with_data.columns:
+        ships_with_data["nodes_speed"] = (
+            ships_with_data["speed-in-centimeters-per-second"] * 0.0194384
+        ).round(1)
+
+    ships_with_data = ships_with_data.sort_values(
+        by=["mmsi-number", "update-time"]
+    )
+
+    if (
+        "latitude" in ships_with_data.columns
+        and "lat" not in ships_with_data.columns
+    ):
+        ships_with_data["lat"] = ships_with_data["latitude"]
+    if (
+        "longitude" in ships_with_data.columns
+        and "lon" not in ships_with_data.columns
+    ):
+        ships_with_data["lon"] = ships_with_data["longitude"]
+
+    columns_to_be_used = [
+        "mmsi-number",
+        "name",
+        "lat",
+        "lon",
+        "update-time",
+        "orientation",
+    ]
+    available_cols = [col for col in columns_to_be_used if col in ships_with_data.columns]
+    return ships_with_data[available_cols].dropna(subset=["lat", "lon"])
 
 
+@st.cache_data
+def get_pedestrian_and_program_data():
+    return load_data(), load_program()
 
 
-
-
-
-crowd_count_data = load_data()
-program  = load_program()
+# --- LOAD DATA ---
+sail_vessels = get_processed_vessels()
+crowd_count_data, program = get_pedestrian_and_program_data()
 
 #These are to change based on the catalogue
 min_date = min(program["start_datetime"].dt.date)
@@ -141,7 +189,7 @@ def update_visuals(chosen_time = chosen_time):
             radius_scale=1,
             radius_min_pixels=5,
             radius_max_pixels=30,
-            get_position=["longitude", "latitude"], 
+            get_position=["lon", "lat"], 
             get_fill_color=[0, 128, 255],            
             get_line_color=[255, 255, 255],
         )
