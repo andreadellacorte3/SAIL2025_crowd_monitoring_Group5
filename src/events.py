@@ -27,6 +27,7 @@ Computed in this code:
 - load_sensors() : sensor table with location name, family, coordinates and zone.
 - load_program_events() : programme catalogue with timezone-aware times.
 - program_grid() : which events are running in every 3-minute interval.
+- zone_flow() : average flow per metre per zone (both directions per sensor).
 """
 import pandas as pd
 
@@ -83,3 +84,25 @@ def program_grid(program, timestamps):
         grid[event] = active
     grid["n_active_events"] = grid.sum(axis=1)
     return grid
+
+def zone_flow(flow, sensors):
+  
+    """Average flow per metre in each zone.
+
+    The two walking directions of a sensor are added up first, then the
+    sensors of a zone are averaged.
+    """
+    
+    sensor_flow = pd.DataFrame(index=flow.index)
+    for column in flow.columns:
+        sensor = column.split("_")[0]          # "GVCV-11_50" -> "GVCV-11"
+        if sensor in sensor_flow.columns:
+            sensor_flow[sensor] = sensor_flow[sensor] + flow[column]
+        else:
+            sensor_flow[sensor] = flow[column]
+
+    zones = pd.DataFrame(index=flow.index)
+    for zone in sensors["zone"].unique():
+        members = [s for s in sensors.index[sensors["zone"] == zone] if s in sensor_flow.columns]
+        zones[zone] = sensor_flow[members].mean(axis=1)
+    return zones
