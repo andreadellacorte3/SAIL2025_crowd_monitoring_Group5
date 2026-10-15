@@ -26,6 +26,7 @@ Any change must be done directly with the csv file, easy to check and change
 Computed in this code:
 - load_sensors() : sensor table with location name, family, coordinates and zone.
 - load_program_events() : programme catalogue with timezone-aware times.
+- program_grid() : which events are running in every 3-minute interval.
 """
 import pandas as pd
 
@@ -57,8 +58,28 @@ def load_sensors(location_path="data/sensor-location.xlsx",
     return sensors.set_index("sensor")
 
 def load_program_events(path="data/external/sail2025_program.csv"):
+    
     """Return the programme catalogue with timezone-aware start and end times."""
+
     program = pd.read_csv(path)
     program["start_datetime"] = pd.to_datetime(program["start_datetime"])
     program["end_datetime"] = pd.to_datetime(program["end_datetime"])
     return program
+
+def program_grid(program, timestamps):
+    
+    """For every 3-minute interval, mark which programme events are running.
+
+    An interval counts as active when the event has started and not yet ended
+    at the interval's timestamp (start <= t < end).
+    """
+    
+    grid = pd.DataFrame(index=timestamps)
+    for event in program["event"].unique():
+        rows = program[program["event"] == event]
+        active = pd.Series(False, index=timestamps)
+        for _, row in rows.iterrows():
+            active = active | ((timestamps >= row["start_datetime"]) & (timestamps < row["end_datetime"]))
+        grid[event] = active
+    grid["n_active_events"] = grid.sum(axis=1)
+    return grid
