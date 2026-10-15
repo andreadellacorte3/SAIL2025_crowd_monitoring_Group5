@@ -29,6 +29,10 @@ Computed in this code:
 - program_grid() : which events are running in every 3-minute interval.
 - zone_flow() : average flow per metre per zone (both directions per sensor).
 - event_effect() : how unusual each single-day event was in its linked zones.
+- sensor_totals() : flow per sensor, both walking directions added up.
+- sensor_excess() : how far above or below a normal day each sensor was, per interval.
+- sensor_totals() : flow per sensor, both walking directions added up.
+- sensor_excess() : how far above or below a normal day each sensor was, per interval.
 """
 import pandas as pd
 
@@ -159,3 +163,47 @@ def event_effect(zones, program, links, day_start="10:00", day_end="21:57", smoo
             "rank_of_days": int(excess.rank(ascending=False)[event_day]) if excess.notna().all() else None,
         })
     return pd.DataFrame(results).sort_values("peak_excess_pct", ascending=False)
+
+def sensor_totals(flow):
+    """Add up the two walking directions of every sensor (one column per sensor)."""
+    totals = pd.DataFrame(index=flow.index)
+    for column in flow.columns:
+        sensor = column.split("_")[0]          # "GVCV-11_50" -> "GVCV-11"
+        if sensor in totals.columns:
+            totals[sensor] = totals[sensor] + flow[column]
+        else:
+            totals[sensor] = flow[column]
+    return totals
+
+
+def sensor_excess(totals, day_start="10:00", day_end="21:57", smooth=10, min_level=0.5):
+    """For every sensor and 3-minute interval: how far above or below a normal day it was.
+
+    Each day's flow is divided by that day's mean flow between day_start and
+    day_end and smoothed over 30 minutes. The excess is that value minus the
+    median of the other days at the same clock time, in % of the day's mean
+    flow (+40 means 40% of a normal day's average above what is usual then).
+    Sensors whose mean flow over all days is below min_level (ped/m/min) are
+    nearly dead (GASA-06, GVCV-09) and are left empty.
+    """
+    overall = totals.between_time(day_start, day_end).mean()
+    totals = totals.copy()
+    totals.loc[:, overall < min_level] = float("nan")       # nearly dead sensors
+    days = sorted(set(totals.index.date))
+    relative = {}
+    for day in days:
+        day_flow = totals[totals.index.date == day]
+        level = day_flow.between_time(day_start, day_end).mean()      # one level per sensor
+        rel = day_flow / level.where(level > 0)                        # dead sensors become empty
+        rel = rel.rolling(smooth, center=True, min_periods=1).mean()   # 10 x 3 min = 30 min
+        rel.index = rel.index.time
+        relative[day] = rel
+
+    excess = []
+    for day in days:
+        others = pd.concat([relative[d] for d in days if d != day])
+        typical = others.groupby(level=0).median()                     # median per clock time
+        day_excess = (relative[day] - typical) * 100
+        day_excess.index = totals.index[totals.index.date == day]
+        excess.append(day_excess)
+    return pd.concat(excess)
