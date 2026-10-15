@@ -23,8 +23,9 @@ Any change must be done directly with the csv file, easy to check and change
   how (at, near, route, access, wide, none), with a confidence level and a
   note. These are our assumptions, written down so they can be reviewed.
 
-Computed here (by code):
+Computed in this code:
 - load_sensors() : sensor table with location name, family, coordinates and zone.
+- load_program_events() : programme catalogue with timezone-aware times.
 """
 import pandas as pd
 
@@ -54,3 +55,10 @@ def load_sensors(location_path="data/sensor-location.xlsx",
     zones = pd.read_csv(zones_path)
     sensors = sensors.merge(zones, on="sensor", how="left")
     return sensors.set_index("sensor")
+
+def load_program_events(path="data/external/sail2025_program.csv"):
+    """Return the programme catalogue with timezone-aware start and end times."""
+    program = pd.read_csv(path)
+    program["start_datetime"] = pd.to_datetime(program["start_datetime"])
+    program["end_datetime"] = pd.to_datetime(program["end_datetime"])
+    return program
