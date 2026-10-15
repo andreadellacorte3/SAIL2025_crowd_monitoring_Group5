@@ -28,6 +28,7 @@ Computed in this code:
 - load_program_events() : programme catalogue with timezone-aware times.
 - program_grid() : which events are running in every 3-minute interval.
 - zone_flow() : average flow per metre per zone (both directions per sensor).
+- event_effect() : how unusual each single-day event was in its linked zones.
 """
 import pandas as pd
 
@@ -106,3 +107,55 @@ def zone_flow(flow, sensors):
         members = [s for s in sensors.index[sensors["zone"] == zone] if s in sensor_flow.columns]
         zones[zone] = sensor_flow[members].mean(axis=1)
     return zones
+
+def event_effect(zones, program, links, day_start="10:00", day_end="21:57", smooth=10):
+    """Was a zone unusually busy during a single-day event, compared with the other days?
+
+    For every event-zone pair in the links table (relation not "none"):
+    1. Each day's flow is divided by that day's mean flow between day_start
+       and day_end, so a generally busier day does not count as an effect.
+       The relative flow is smoothed over 30 minutes, because ferry landings
+       count people in bursts (one ferry, then nothing).
+    2. For each day, the excess is that day's relative flow minus the median
+       of the other days at the same clock time, in % of the day's mean flow.
+    3. peak_excess_pct is the highest excess on the event day within the
+       official event time; rank_of_days says where the event day ranks among
+       all days on that same measure (1 = most unusual).
+    Only events that take place on one day are measured.
+    """
+    results = []
+    days = sorted(set(zones.index.date))
+    for _, link in links[links["relation"] != "none"].iterrows():
+        rows = program[program["event"] == link["event"]]
+        if len(rows) != 1 or link["zone"] not in zones.columns:
+            continue
+        start = rows["start_datetime"].iloc[0]
+        end = rows["end_datetime"].iloc[0]
+        flow = zones[link["zone"]]
+
+        # one column per day, one row per clock time, flow relative to the day's level
+        table = {}
+        for day in days:
+            day_flow = flow[flow.index.date == day]
+            level = day_flow.between_time(day_start, day_end).mean()
+            relative = day_flow / level if level > 0 else day_flow * float("nan")
+            relative = relative.rolling(smooth, center=True, min_periods=1).mean()   # 10 x 3 min = 30 min
+            relative.index = relative.index.time
+            table[day] = relative
+        table = pd.DataFrame(table)
+        in_window = (table.index >= start.time()) & (table.index < end.time())
+
+        excess = {}
+        for day in days:
+            typical = table.drop(columns=day).median(axis=1)
+            excess[day] = (table[day] - typical)[in_window].max()
+
+        excess = pd.Series(excess)
+        event_day = start.date()
+        results.append({
+            "event": link["event"], "zone": link["zone"],
+            "relation": link["relation"], "confidence": link["confidence"],
+            "peak_excess_pct": round(excess[event_day] * 100, 1),
+            "rank_of_days": int(excess.rank(ascending=False)[event_day]) if excess.notna().all() else None,
+        })
+    return pd.DataFrame(results).sort_values("peak_excess_pct", ascending=False)
