@@ -31,8 +31,6 @@ Computed in this code:
 - event_effect() : how unusual each single-day event was in its linked zones.
 - sensor_totals() : flow per sensor, both walking directions added up.
 - sensor_excess() : how far above or below a normal day each sensor was, per interval.
-- sensor_totals() : flow per sensor, both walking directions added up.
-- sensor_excess() : how far above or below a normal day each sensor was, per interval.
 """
 import pandas as pd
 
