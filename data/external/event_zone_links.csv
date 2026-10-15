@@ -1,0 +1,46 @@
+﻿event,zone,relation,confidence,note
+SAIL-In Parade,NDSM,route,medium,"Ships sail from the North Sea Canal to the IJhaven, passing the whole IJ front"
+SAIL-In Parade,FERRY_PONTSTEIGER,route,medium,"Ships sail from the North Sea Canal to the IJhaven, passing the whole IJ front"
+SAIL-In Parade,CS_IJBOULEVARD,route,medium,"Ships sail from the North Sea Canal to the IJhaven, passing the whole IJ front"
+SAIL-In Parade,BUIKSLOTERWEG,route,medium,"Ships sail from the North Sea Canal to the IJhaven, passing the whole IJ front"
+SAIL-In Parade,AZARTPLEIN,route,medium,"Ships sail from the North Sea Canal to the IJhaven, passing the whole IJ front"
+SAIL-Out Parade,NDSM,route,medium,Same route in the opposite direction; not covered by vessel data
+SAIL-Out Parade,FERRY_PONTSTEIGER,route,medium,Same route in the opposite direction; not covered by vessel data
+SAIL-Out Parade,CS_IJBOULEVARD,route,medium,Same route in the opposite direction; not covered by vessel data
+SAIL-Out Parade,BUIKSLOTERWEG,route,medium,Same route in the opposite direction; not covered by vessel data
+SAIL-Out Parade,AZARTPLEIN,route,medium,Same route in the opposite direction; not covered by vessel data
+Saluut Protocollair,CS_IJBOULEVARD,at,medium,Ceremony on the water during SAIL-In; best seen from the Central Station side
+Varend Erfgoed: Vlootschouw,CS_IJBOULEVARD,route,medium,Route Stenen Hoofd -> SAILSation (Surinamekade)
+Varend Erfgoed: Vlootschouw,AZARTPLEIN,route,medium,Route Stenen Hoofd -> SAILSation (Surinamekade)
+IJveren Defilé,AZARTPLEIN,near,low,Parade of IJ ferries in the IJhaven; regular ferry service may also be affected
+Varend Erfgoed: Admiraalzeilen,AZARTPLEIN,near,medium,"SAILSation area, IJ near Surinamekade"
+SAILSation,AZARTPLEIN,near,medium,"Surinamekade, next to Azartplein"
+Schepen ontdekken,AZARTPLEIN,near,low,"Tall ships moored across the Oranje Oceaan, not one point"
+SAIL Reuzenrad,AZARTPLEIN,near,low,Kop van Java; nearest sensor zone is roughly 1 km away
+Podium Kop van Java,AZARTPLEIN,near,low,Kop van Java; nearest sensor zone is roughly 1 km away
+SAIL Adventure Seats,AZARTPLEIN,at,high,Azartplein
+Podium IJplein,FERRY_CS_IJPLEIN,access,medium,IJplein is reached by ferry from Central Station
+Avondshow: Waves of Light,BUIKSLOTERWEG,near,medium,Show at the A'DAM Tower
+Avondshow: Waves of Light,CS_IJBOULEVARD,wide,medium,Visible from all oceans; the crowd leaves after 22:45
+Avondshow: Waves of Light,FERRY_CS_BUIKSLOTERWEG,wide,medium,Visible from all oceans; the crowd leaves after 22:45
+SAIL On Stage,NDSM,at,high,NDSM shipyard
+SAIL On Stage,FERRY_CS_NDSM,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+SAIL On Stage,FERRY_PONTSTEIGER,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+Kaap de Groene Hoop festival,NDSM,at,high,NDSM shipyard
+Kaap de Groene Hoop festival,FERRY_CS_NDSM,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+Kaap de Groene Hoop festival,FERRY_PONTSTEIGER,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+SAIL Horizons,NDSM,at,high,NDSM shipyard
+SAIL Horizons,FERRY_CS_NDSM,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+SAIL Horizons,FERRY_PONTSTEIGER,access,medium,NDSM is reached by ferry from Central Station or Pontsteiger
+Crew Parade,OOSTERDOK,route,high,Route PTA -> Oosterdokskade -> Zeedijk -> Nieuwmarkt -> Dam
+Crew Parade,CENTRE_WALLEN,route,high,Route PTA -> Oosterdokskade -> Zeedijk -> Nieuwmarkt -> Dam
+Crew Parade,CENTRE_DAM,route,high,Route PTA -> Oosterdokskade -> Zeedijk -> Nieuwmarkt -> Dam
+Armazoen,OOSTERDOK,near,low,"Marineterrein, roughly 500 m from Oosterdok sensors"
+Pieremachocheltocht,NO_SENSOR_COVERAGE,none,high,"Route through Westerdok, Prinsengracht and Amstel: no sensors on the route"
+Varend Erfgoed: Grachtentocht,NO_SENSOR_COVERAGE,none,high,City canals: no sensors on the route
+DAMEN Experience,NO_SENSOR_COVERAGE,none,high,"Damen Shipyards on the North Sea Canal, far from all sensors"
+Dinner by the DAMEN Dock,NO_SENSOR_COVERAGE,none,high,"Damen Shipyards on the North Sea Canal, far from all sensors"
+Podium Bogortuin,NO_LOCATION,none,high,Location 'Bogortuin' not mapped
+Marine Roadshow,NO_LOCATION,none,high,On navy ship Zr.Ms. Karel Doorman; mooring place not stated
+Sit-down Café,NO_LOCATION,none,high,'Witte Oceaan' not mapped
+SAIL Kids Club,NO_LOCATION,none,high,No location stated on sail.nl
