@@ -15,6 +15,9 @@ Manual (made by the roberto):
   NDSM" is the ferry from Central Station to NDSM), walkways near Central
   Station by position (IJBoulevard, east entrance, Oosterdok), and the other
   sensors by neighbourhood (Amsterdam-Noord, eastern docklands, Wallen, Dam).
+    
+Checked visually on a map with "check_zones.py" with the help of a test notebook.
+Any change must be done directly with the csv file, easy to check and change
 
 - event_zone_links.csv : which zones each event is expected to affect, and
   how (at, near, route, access, wide, none), with a confidence level and a
