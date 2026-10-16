@@ -11,34 +11,116 @@ from Population_of_dictionary_with_pedestrian_data import load_data
 import math
 from find_start_end_datetimes import load_program
 import time
+import numpy as np
 
+
+def generate_arc_polygon(lon, lat, direction_degrees, count, base_radius=1):
+    """Generates the coordinates for a curved polygon facing a specific direction."""
+    # 0 = North, 90 = East. We sweep from -half_span_in_degrees to +half_span_in_degrees degrees to leave a nice gap between the halves.
+    if count == 0: return []
+    half_span_in_degrees = 20
+    start_angle = np.radians(direction_degrees - half_span_in_degrees)
+    end_angle = np.radians(direction_degrees + half_span_in_degrees)
+    
+    # Scale the outer size of the ring by the crowd count
+    rescale = 10000
+    outer_radius = np.sqrt((base_radius**2)+(count/np.pi)) / rescale
+    inner_radius = base_radius / rescale
+
+    # Generate points along the curve
+    angles = np.linspace(start_angle, end_angle, 50)
+    
+    # Longitude correction factor to keep circles round on Web Mercator maps
+    lat_ratio = np.cos(np.radians(lat))
+    
+    
+    # Calculate outer edge
+    outer_lon = lon + (outer_radius * np.sin(angles)) / lat_ratio
+    outer_lat = lat + (outer_radius * np.cos(angles))
+    
+    # Calculate inner edge (reversed so the polygon closes properly)
+    inner_lon = lon + (inner_radius * np.sin(angles[::-1])) / lat_ratio
+    inner_lat = lat + (inner_radius * np.cos(angles[::-1]))
+    
+    # Combine into a single polygon path
+    
+    polygon = [(x, y) for x, y in np.dstack((outer_lon, outer_lat))[0]] + \
+              [(x, y) for x, y in np.dstack((inner_lon, inner_lat))[0]]
+              
+    return polygon
 
 def update_visuals(chosen_time: datetime.time):
     chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
 
+    crowd_sensor_time_data = crowd_count_data[
+    (crowd_count_data["timestamp"] == chosen_datetime) |
+    (crowd_count_data.index == "lat") |
+    (crowd_count_data.index == "long") |
+    (crowd_count_data.index == "orientation") |
+    (crowd_count_data.index == "name_without_orientation") 
+    ].T
+    crowd_sensor_time_data.drop(["minute","day","weekday","month","hour","is_weekend","timestamp"], inplace = True)
+    # st.dataframe(crowd_sensor_time_data)
+    # st.dataframe(crowd_sensor_time_data.transpose())
+
+
+
+    crowd_sensor_time_data["orientation"] = crowd_sensor_time_data["orientation"].astype(int,errors = "ignore")
+    crowd_sensor_time_data = crowd_sensor_time_data.rename(columns={crowd_sensor_time_data.columns[0]: "count"})
+    
+    
+    # st.dataframe(crowd_sensor_time_data)
+
+
+    crowd_sensor_time_data["polygon"] = crowd_sensor_time_data.apply(
+        lambda row: generate_arc_polygon(
+            lon= float(row["long"]), 
+            lat=float(row["lat"]), 
+            direction_degrees=int(row["orientation"]), 
+            count= int(row["count"])
+        ),
+        axis = 1)
+    
+    crowd_sensor_time_data["tooltip-info"] = "" + \
+    crowd_sensor_time_data["name_without_orientation"].astype(str) + \
+    "\nOrientation: " + crowd_sensor_time_data["orientation"].astype(str) + \
+    "\nCount: " + crowd_sensor_time_data["count"].astype(int).astype(str)
+
+    crowd_sensor_time_data["color"] =  crowd_sensor_time_data["orientation"].apply(lambda x: [255,128,0,200] if x >= 180 else [0,255,255,200])
 
     with visuals.container():
         # Creates the layer to plot based on the previous data
-        crowd_count_layer = pdk.Layer(
+        crowd_count_position_layer = pdk.Layer(
             "ScatterplotLayer",
             crowd_sensor_position_data,
-            pickable=True,
+            pickable=False,
             opacity=0.8,
             stroked=True,
             filled=True,
-            radius_scale=6,
-            radius_min_pixels=1,
-            radius_max_pixels=7,
             line_width_min_pixels=1,
             get_position= "[long,lat]",
-            get_radius=100,
-            get_fill_color=[255, 140, 0],
+            get_radius=6,
+            get_fill_color=[255, 255, 255],
             get_line_color=[0, 0, 0],
+        )
+
+        crowd_count_layer = pdk.Layer(
+            "PolygonLayer",
+            crowd_sensor_time_data,
+            get_polygon="polygon",
+            get_fill_color='color',
+            filled=True,
+            extruded=False,
+            wireframe=False,
+            pickable=True
+
         )
 
         layers = []
         if "Sensors" in selected_layers:
+            layers.append(crowd_count_position_layer)
             layers.append(crowd_count_layer)
+
         if "Vessels" in selected_layers:
             pass # layers.append(vessels_layer) when vessels_layer is defined
         # this sets the default initial view point
@@ -46,7 +128,7 @@ def update_visuals(chosen_time: datetime.time):
         # The map is plotted
         st.pydeck_chart(pdk.Deck(
             layers=layers,
-            tooltip={"text": "{name_without_orientation}"},
+            tooltip = {"text": "{tooltip-info}"},
             initial_view_state = amsterdam
         ))
 
@@ -104,6 +186,8 @@ chosen_time = time_slider.slider(
     # key = "saved_time"
     )
 
+chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
+
 non_sensors = (
         "hour",
         "timestamp",
@@ -120,7 +204,6 @@ crowd_sensor_position_data = transpose[
     transpose.index.str.contains("-")
 ]
 crowd_sensor_position_data = crowd_sensor_position_data.drop_duplicates()
-
 
 
 
