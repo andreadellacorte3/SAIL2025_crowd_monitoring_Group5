@@ -76,7 +76,7 @@ def load_data(
     }
 
     df_loc = pd.read_excel(sensor_location_path)
-    df_counts = pd.read_csv(flow_data_path)
+    df_counts = pd.read_csv(flow_data_path).astype(object)
 
     col = "Effectieve\xa0 breedte"
     df_loc["Effectieve breedte"] = pd.to_numeric(
