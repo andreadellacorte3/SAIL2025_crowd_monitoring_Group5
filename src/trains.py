@@ -5,7 +5,8 @@ https://www.rijdendetreinen.nl/en/open-data/train-archive
 """
 from pathlib import Path
 from urllib.request import urlretrieve
-
+import os
+import subprocess
 import pandas as pd
 
 URL = "https://opendata.rijdendetreinen.nl/public/services/services-2025-08.csv.gz"
@@ -25,9 +26,10 @@ def train_counts(interval="3min"):
     Cancelled stops and replacement buses are left out. The result has one row
     per interval from 20 to 24 August 2025, with the columns 'arrivals' and 'departures'.
     """
-    if not DATA_FILE.exists():  # download the 32 MB file only the first time
-        DATA_FILE.parent.mkdir(exist_ok=True)
-        urlretrieve(URL, DATA_FILE)
+  
+# download the 32mb file
+    if not os.path.exists(DATA_FILE):
+        subprocess.run(["curl", "-s", "-L", "-A", "Mozilla/5.0", "-o", str(DATA_FILE), URL])
 
     stops = pd.read_csv(DATA_FILE, usecols=COLUMNS)
     stops = stops[(stops["Stop:Station code"] == STATION)

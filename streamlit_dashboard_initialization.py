@@ -13,7 +13,6 @@ import datetime
 import pydeck as pdk
 import pandas as pd
 from Population_of_dictionary_with_pedestrian_data import load_data
-import math
 from find_start_end_datetimes import load_program
 import time
 import numpy as np
@@ -25,24 +24,16 @@ from src.sensor_status import LOS_LIMITS, level_of_service, find_off_sensors, of
 
 # Colour of each level of service: green when it is fine, then yellow and red, black for a crisis (NFC1).
 # Every level is darker than the one before, so the levels can be told apart also without seeing colours.
-LOS_COLORS = {
-    "A": [199, 233, 192],
-    "B": [253, 208, 73],
-    "C": [253, 141, 60],
-    "D": [215, 48, 39],
-    "E": [127, 0, 0],
-    "F": [0, 0, 0],
-}
+LOS_COLORS = {"A": [199, 233, 192],"B": [253, 208, 73],"C": [253, 141, 60],
+    "D": [215, 48, 39],"E": [127, 0, 0],"F": [0, 0, 0]}
 OFF_COLOR = [150, 150, 150]
 
 # Flow per metre (persons/m/min) above which a location is highlighted on the map (FC5).
 # The report says the threshold differs between walkways, streets and ferry landings,
 # but the values are not decided yet: for now all three use the start of level D.
-HIGHLIGHT_THRESHOLD = {
-    "SAIL walkway": 49,
-    "Ferry landing": 49,
-    "City centre street": 49,
-}
+HIGHLIGHT_THRESHOLD = {"SAIL walkway": 49,"Ferry landing": 49,"City centre street": 49}
+
+MODERATE_THRESHOLD = {"SAIL walkway": 35,"Ferry landing": 35,"City centre street": 35}
 
 AMSTERDAM_CENTRAAL = {"lat": 52.3789, "lon": 4.9003}
 
@@ -108,6 +99,35 @@ def load_trains():
     trains.index = trains.index.tz_localize(None)   # same clock time as the sensor data
     return trains
 
+def compute_alarms(flow, off, sensors, thresholds, min_intervals = 1):
+    """Boolean table (same shape as flow): True when a sensor is in alarm at that interval.
+
+    An alarm needs `min_intervals` consecutive 3-minute intervals above the threshold,
+    so a single noisy peak does not count. Off sensors never raise an alarm (FC3).
+    """
+    cols = [c for c in flow.columns if c in sensors.index and c in off.columns]
+    limits = sensors.loc[cols, "family_description"].map(thresholds)
+
+    above = flow[cols].gt(limits, axis = 1) & ~off[cols]
+    # True only if the last `min_intervals` intervals were all above the threshold
+    return above.rolling(min_intervals).sum().eq(min_intervals)
+
+
+def alarm_summary(alarms, flow, sensors, until = None):
+    """One row per sensor: number of alarm episodes, minutes in alarm and peak flow."""
+    if until is not None:
+        alarms = alarms[alarms.index <= until]
+        flow = flow.loc[alarms.index]
+
+    # an episode starts when the alarm is on now but was off in the previous interval
+    starts = alarms & ~alarms.shift(1, fill_value = False)
+
+    summary = pd.DataFrame({"location": sensors.loc[alarms.columns, "location_name"],
+        "alarm episodes": starts.sum(),
+        "minutes in alarm": alarms.sum() * 3,
+        "peak flow (persons/m/min)": flow[alarms.columns].max().round(1)})
+    return summary.sort_values("alarm episodes", ascending = False)
+
 
 def show_legend():
     """Legend of the map (NFC1)."""
@@ -127,6 +147,30 @@ def show_legend():
     text += "<br>" + box(OFF_COLOR) + "sensor off, no data" + ring + "above the threshold"
     text += "&nbsp;&nbsp;&nbsp;&nbsp;Arc size = pedestrians counted, one arc per walking direction"
     st.markdown(text, unsafe_allow_html = True)
+
+
+def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
+    day_start = datetime.datetime.combine(chosen_date, datetime.time(0, 0))
+    day_end = day_start + datetime.timedelta(days = 1)
+    day_alarms = level_alarms[(level_alarms.index >= day_start) & (level_alarms.index < day_end)]
+
+    until = current_datetime if alarm_window == "Chosen day until chosen time" else None
+    summary = alarm_summary(day_alarms, flow, sensors, until)
+
+    # only the sensors of the chosen area (FC4)
+    if chosen_area != "Whole IJ":
+        summary = summary[summary.index.isin(in_view.index)]
+
+    limits = ", ".join(k + ": " + str(v) for k, v in thresholds.items())
+    st.caption("Flow per metre above the threshold (" + limits + ") for at least "
+               + str(alarm_min_intervals * 3) + " minutes. Off sensors are excluded.")
+
+    col_x, col_y = st.columns(2)
+    col_x.metric("Total alarm episodes", int(summary["alarm episodes"].sum()))
+    col_y.metric("Sensors with at least one alarm", int((summary["alarm episodes"] > 0).sum()))
+
+    st.dataframe(summary[summary["alarm episodes"] > 0])
+    st.bar_chart(summary["alarm episodes"])
 
 
 def update_visuals(chosen_time: datetime.time):
@@ -171,8 +215,7 @@ def update_visuals(chosen_time: datetime.time):
     (crowd_count_data.index == "lat") |
     (crowd_count_data.index == "long") |
     (crowd_count_data.index == "orientation") |
-    (crowd_count_data.index == "name_without_orientation")
-    ].T
+    (crowd_count_data.index == "name_without_orientation")].T
     crowd_sensor_time_data.drop(["minute","day","weekday","month","hour","is_weekend","timestamp"], inplace = True)
 
 
@@ -187,14 +230,10 @@ def update_visuals(chosen_time: datetime.time):
     crowd_sensor_time_data.loc[sensor_off, "count"] = 0
 
 
-    crowd_sensor_time_data["polygon"] = crowd_sensor_time_data.apply(
-        lambda row: generate_arc_polygon(
-            lon= float(row["long"]),
+    crowd_sensor_time_data["polygon"] = crowd_sensor_time_data.apply(lambda row: generate_arc_polygon(lon= float(row["long"]),
             lat=float(row["lat"]),
             direction_degrees=int(row["orientation"]),
-            count= int(row["count"])
-        ),
-        axis = 1)
+            count= int(row["count"])), axis = 1)
 
     crowd_sensor_time_data["tooltip-info"] = "" + \
     crowd_sensor_time_data["sensor"].map(now["tooltip-info"]) + \
@@ -214,8 +253,7 @@ def update_visuals(chosen_time: datetime.time):
     else:
         in_view = now[now["zone"] == chosen_area]
         zoom = 15
-    view = pdk.ViewState(
-        latitude = (in_view["lat"].min() + in_view["lat"].max()) / 2,
+    view = pdk.ViewState(latitude = (in_view["lat"].min() + in_view["lat"].max()) / 2,
         longitude = (in_view["lon"].min() + in_view["lon"].max()) / 2,
         zoom = zoom)
 
@@ -233,9 +271,7 @@ def update_visuals(chosen_time: datetime.time):
         col_c.metric("Train arrivals at Amsterdam Centraal", int(trains.loc[chosen_datetime, "arrivals"]))
 
         # Creates the layers to plot based on the previous data
-        crowd_count_position_layer = pdk.Layer(
-            "ScatterplotLayer",
-            now,
+        crowd_count_position_layer = pdk.Layer("ScatterplotLayer",now,
             pickable=True,
             opacity=0.9,
             stroked=True,
@@ -245,12 +281,9 @@ def update_visuals(chosen_time: datetime.time):
             get_position= "[lon,lat]",
             get_radius="marker_radius",
             get_fill_color="marker_color",
-            get_line_color=[0, 0, 0],
-        )
+            get_line_color=[0, 0, 0])
 
-        crowd_count_layer = pdk.Layer(
-            "PolygonLayer",
-            crowd_sensor_time_data,
+        crowd_count_layer = pdk.Layer("PolygonLayer",crowd_sensor_time_data,
             get_polygon="polygon",
             get_fill_color='color',
             get_line_color=[60, 60, 60],
@@ -259,14 +292,10 @@ def update_visuals(chosen_time: datetime.time):
             filled=True,
             extruded=False,
             wireframe=False,
-            pickable=True
-
-        )
+            pickable=True)
 
         # A black ring around the locations above the threshold (FC5)
-        highlight_layer = pdk.Layer(
-            "ScatterplotLayer",
-            now[now["above_threshold"]],
+        highlight_layer = pdk.Layer("ScatterplotLayer",now[now["above_threshold"]],
             pickable=False,
             stroked=True,
             filled=False,
@@ -274,20 +303,16 @@ def update_visuals(chosen_time: datetime.time):
             get_radius=70,
             radius_min_pixels=14,
             line_width_min_pixels=4,
-            get_line_color=[0, 0, 0],
-        )
+            get_line_color=[0, 0, 0])
 
-        label_layer = pdk.Layer(
-            "TextLayer",
-            now[now["label"] != ""],
+        label_layer = pdk.Layer("TextLayer",now[now["label"] != ""],
             get_position="[lon,lat]",
             get_text="label",
             get_size=14,
             get_color=[0, 0, 0],
             get_pixel_offset=[0, -22],
             background=True,
-            get_background_color=[255, 255, 255, 220],
-        )
+            get_background_color=[255, 255, 255, 220])
 
         layers = []
         if "Sensors" in selected_layers:
@@ -306,30 +331,23 @@ def update_visuals(chosen_time: datetime.time):
                 "tooltip-info": "Amsterdam Centraal\nTime: " + time_label +
                     "\nTrain arrivals: " + str(arrivals) + "\nTrain departures: " + str(departures),
             }])
-            layers.append(pdk.Layer(
-                "ScatterplotLayer",
+            layers.append(pdk.Layer("ScatterplotLayer",
                 station,
                 pickable=True,
                 opacity=0.6,
                 get_position="[lon,lat]",
                 get_radius="radius",
-                get_fill_color=[40, 70, 160],
-            ))
+                get_fill_color=[40, 70, 160]))
 
         if "Vessels" in selected_layers:
             pass # layers.append(vessels_layer) when vessels_layer is defined (FO3)
 
         # The map is plotted
-        st.pydeck_chart(pdk.Deck(
-            layers=layers,
+        st.pydeck_chart(pdk.Deck(layers=layers,
             tooltip = {"text": "{tooltip-info}"},
             initial_view_state = view,
-            map_style = "light",
-        ))
+            map_style = "light"))
         show_legend()
-
-
-
 
 
         st.header("Ongoing events")
@@ -338,6 +356,15 @@ def update_visuals(chosen_time: datetime.time):
             (program["start_datetime"] <= chosen_datetime) &
             (program["end_datetime"] >= chosen_datetime)]
             [["Start","End"]])
+
+        if show_alarms:
+            st.header("Flow alarms per sensor")
+            tab_critical, tab_moderate = st.tabs(["Critical", "Moderate"])
+            with tab_critical:
+                show_alarm_summary(alarms_critical, in_view, HIGHLIGHT_THRESHOLD, chosen_datetime)
+            with tab_moderate:
+                show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime)
+
         return
 
 
@@ -357,12 +384,7 @@ min_date = min(program["start_datetime"].dt.date)
 max_date = max(program["end_datetime"].dt.date)
 
 
-chosen_date = st.sidebar.date_input(
-    label = "Date",
-    format = "DD/MM/YYYY",
-    min_value = min_date,
-    max_value = max_date,
-    )
+chosen_date = st.sidebar.date_input(label = "Date",format = "DD/MM/YYYY",min_value = min_date,max_value = max_date)
 
 # FC4: the whole day can be chosen, in steps of 3 minutes like the sensor data
 min_time = datetime.time(0, 0)
@@ -370,33 +392,27 @@ max_time = datetime.time(23, 57)
 
 
 time_slider = st.sidebar.empty()
-chosen_time = time_slider.slider(
-    value = datetime.time(14),
-    label = "Time",
-    format = "HH:mm",
-    min_value = min_time,
-    max_value = max_time,
-    step = datetime.timedelta(minutes = 3),
+chosen_time = time_slider.slider(value = datetime.time(14),label = "Time",format = "HH:mm",min_value = min_time,max_value = max_time,
+    step = datetime.timedelta(minutes = 3))
     # key = "saved_time"
-    )
+
 
 chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
 
 # FC4: the part of the IJ to look at (zones of data/external/sensor_zones.csv)
-chosen_area = st.sidebar.selectbox(
-    "Area",
-    options = ["Whole IJ"] + sorted(sensors["zone"].dropna().unique()),
-)
+chosen_area = st.sidebar.selectbox("Area",options = ["Whole IJ"] + sorted(sensors["zone"].dropna().unique()))
 
-non_sensors = (
-        "hour",
-        "timestamp",
-        "minute",
-        "day",
-        "month",
-        "weekday",
-        "is_weekend",
-        )
+st.sidebar.divider()
+show_alarms = st.sidebar.checkbox("Count critical-zone alarms per sensor")
+alarm_min_intervals = st.sidebar.slider("Minimum duration of an alarm (intervals of 3 min)",
+    min_value = 1, max_value = 5, value = 1,
+    disabled = not show_alarms)
+
+alarm_window = st.sidebar.radio("Count alarms over",
+    options = ["Whole chosen day", "Chosen day until chosen time"],
+    disabled = not show_alarms)
+
+non_sensors = ("hour","timestamp","minute","day","month","weekday","is_weekend")
 
 
 
@@ -405,18 +421,14 @@ st.header("IJ's map")
 selected_layers = st.pills("Map layers",options = ["Sensors", "Trains", "Vessels"],selection_mode = "multi", default = ["Sensors"])
 visuals = st.empty()
 
-
+alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_min_intervals)
+alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
 
 update_visuals(chosen_time = chosen_time)
 col1, col2 = st.sidebar.columns(2)
 play = col1.empty()
 stop = col2.button("⏹  Stop")
-speed = st.sidebar.number_input(
-    "Play speed",
-    value = 1.0,
-    min_value = 0.0,
-    step = 1.0
-)
+speed = st.sidebar.number_input("Play speed",value = 1.0,min_value = 0.0,step = 1.0)
 
 
 if play.button("▶  Play"):
@@ -426,12 +438,7 @@ if play.button("▶  Play"):
     max_range = int((max_dt-chosen_dt)/ datetime.timedelta(minutes = 3)) + 1
     range_to_go = [(chosen_dt + datetime.timedelta(minutes = i*3)).time() for i in range(max_range)]
     for i in range_to_go:
-        chosen_time = time_slider.slider(
-            label = "Time",
-            min_value=min_time,
-            max_value=max_time,
-            value=i,
-            step=datetime.timedelta(minutes=3)
-        )
+        chosen_time = time_slider.slider(label = "Time",min_value=min_time,max_value=max_time,value=i,
+            step=datetime.timedelta(minutes=3))
         update_visuals(chosen_time)
         time.sleep(0.5/speed)
