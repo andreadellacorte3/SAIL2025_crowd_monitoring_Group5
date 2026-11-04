@@ -33,7 +33,7 @@ def load_data(
     sensors_not_in_sensor_location = ( # The sensor "GASA-06-B" is not present in the sensor-location.xlsx file
         "GASA-06-B_275",
         "GASA-06-B_95"
-    )
+)
 
     def retrieve_all_counts(i:int, data:dict = data) -> dict:
         """

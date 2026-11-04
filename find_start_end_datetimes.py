@@ -12,8 +12,7 @@ def load_program():
     program = program.rename(columns={
         "event": "Event",
         "start_time": "Start",
-        "end_time": "End"
-    })
+        "end_time": "End"})
     program = program.set_index("Event")
     return program
 

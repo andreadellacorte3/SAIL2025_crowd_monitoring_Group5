@@ -31,66 +31,43 @@ def get_processed_vessels():
     vessels_df = pd.read_csv(csv_file)
 
     # Time conversion
-    vessels_df["hourminute"] = (
-        pd.to_datetime(
-            vessels_df["upload-timestamp"], utc=True, format="ISO8601")
+    vessels_df["hourminute"] = (pd.to_datetime(vessels_df["upload-timestamp"], utc=True, format="ISO8601")
         .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int))
-
     # Filter sail destinations
-    sail_destinations = vessels_df[
-        vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
+    sail_destinations = vessels_df[vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
     mask_1 = ["Exhibition Vessel","Frigate","Museum, Stationary",
         "Passenger Ship","Passenger/Cruise","Sail Training Ship",
-        "Sailing Vessel","Yacht","Yacht (Sailing)",]
+        "Sailing Vessel","Yacht","Yacht (Sailing)"]
 
     df_cat = vessels_df[vessels_df["sub-category"].isin(mask_1)]
     df_dest = vessels_df[(vessels_df["sub-category"].isna())
         & (vessels_df["destination"].isin(
                 sail_destinations["destination"].unique()))]
 
-    sail_vessels = (
-        pd.concat([df_cat, df_dest]).drop_duplicates().reset_index(drop=True)
-    )
+    sail_vessels = (pd.concat([df_cat, df_dest]).drop_duplicates().reset_index(drop=True))
     ships_with_data = sail_vessels.copy()
 
-    if (
-        "update-time" not in ships_with_data.columns
-        and "upload-timestamp" in ships_with_data.columns
-    ):
+    if ("update-time" not in ships_with_data.columns
+        and "upload-timestamp" in ships_with_data.columns):
         ships_with_data["update-time"] = ships_with_data["upload-timestamp"]
 
     ships_with_data["update-time"] = pd.to_datetime(
-        ships_with_data["update-time"]
-    )
+        ships_with_data["update-time"])
 
     if "speed-in-centimeters-per-second" in ships_with_data.columns:
-        ships_with_data["nodes_speed"] = (
-            ships_with_data["speed-in-centimeters-per-second"] * 0.0194384
-        ).round(1)
+        ships_with_data["nodes_speed"] = (ships_with_data["speed-in-centimeters-per-second"] * 0.0194384).round(1)
 
-    ships_with_data = ships_with_data.sort_values(
-        by=["mmsi-number", "update-time"]
-    )
+    ships_with_data = ships_with_data.sort_values(by=["mmsi-number", "update-time"])
 
-    if (
-        "latitude" in ships_with_data.columns
-        and "lat" not in ships_with_data.columns
-    ):
+    if ("latitude" in ships_with_data.columns
+        and "lat" not in ships_with_data.columns):
         ships_with_data["lat"] = ships_with_data["latitude"]
-    if (
-        "longitude" in ships_with_data.columns
-        and "lon" not in ships_with_data.columns
-    ):
+    if ("longitude" in ships_with_data.columns
+        and "lon" not in ships_with_data.columns):
         ships_with_data["lon"] = ships_with_data["longitude"]
 
-    columns_to_be_used = [
-        "mmsi-number",
-        "name",
-        "lat",
-        "lon",
-        "update-time",
-        "orientation",
-    ]
+    columns_to_be_used = ["mmsi-number","name","lat",
+        "lon","update-time","orientation"]
     available_cols = [col for col in columns_to_be_used if col in ships_with_data.columns]
     return ships_with_data[available_cols].dropna(subset=["lat", "lon"])
 
@@ -133,9 +110,9 @@ chosen_time = time_slider.slider(
     format = "HH:mm",
     min_value = min_time,
     max_value = max_time,
-    step = datetime.timedelta(minutes = 3),
+    step = datetime.timedelta(minutes = 3))
     # key = "saved_time"
-    )
+    
 
 
 st.header("IJ's map")
@@ -151,13 +128,9 @@ def update_visuals(chosen_time = chosen_time):
         for counts in crowd_count_data[sensor]["orientation"].values():
             total_count += sum(counts)
         for_pdk_layer.append(
-            {
-                "name": sensor,
-                "pos": list((crowd_count_data[sensor]["y"],crowd_count_data[sensor]["x"])),
+            {"name": sensor,"pos": list((crowd_count_data[sensor]["y"],crowd_count_data[sensor]["x"])),
                 "count_to_visualize": math.sqrt(total_count)/25,
-                "count": total_count
-            }
-        )
+                "count": total_count})
 
     with visuals.container():
         
@@ -191,8 +164,7 @@ def update_visuals(chosen_time = chosen_time):
             radius_max_pixels=30,
             get_position=["lon", "lat"], 
             get_fill_color=[0, 128, 255],            
-            get_line_color=[255, 255, 255],
-        )
+            get_line_color=[255, 255, 255])
 
         # 3. dynamics layers
         layers = []
