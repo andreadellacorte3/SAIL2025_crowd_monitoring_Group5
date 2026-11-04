@@ -1,0 +1,74 @@
+Aggregates Carrier
+Anchor Handling Tug Supply
+Anchor Handling Vessel
+Asphalt/Bitumen Tanker
+Bulk Carrier
+Bulk Carrier, Self-discharging
+Bunkering Tanker (LNG)
+Buoy Tender
+Cement Carrier
+Chemical/Products Tanker
+Combination Gas Tanker (LNG/LPG)
+Command Vessel
+Commissioning Service Operation Vessel
+Container Ship (Fully Cellular)
+Container/Ro-Ro Cargo Ship
+Crane Vessel
+Crew Boat
+Crew/Supply Vessel
+Crude Oil Tanker
+Crude/Oil Products Tanker
+Diving Support Vessel
+Drilling Rig, jack up
+Edible Oil Tanker
+Exhibition Vessel
+Fishery Patrol Vessel
+Fishery Research Vessel
+Fishing Vessel
+Frigate
+General Cargo Ship
+Heavy Load Carrier
+Heavy Load Carrier, semi submersible
+Hopper, Motor
+LNG Tanker
+LPG Tanker
+Maintenance Platform, semi Submersible
+Minehunter
+Molten Sulphur Tanker
+Museum, Stationary
+Offshore Support Vessel
+Open Hatch Cargo Ship
+Palletised Cargo Ship
+Passenger Ship
+Passenger/Cruise
+Passenger/Ro-Ro Ship (Vehicles)
+Patrol Vessel
+Pilot Vessel
+Pipe Layer Crane Vessel
+Platform Supply Ship
+Pollution Control Vessel
+Products Tanker
+Refrigerated Cargo Ship 
+Replenishment Dry Cargo Vessel
+Research Survey Vessel
+Ro-Ro Cargo Ship
+Sail Training Ship
+Sailing Vessel
+Salvage Ship
+Search & Rescue Vessel
+Service Operation Vessel
+Shuttle Tanker
+Standby Safety Vessel
+Suction Dredger
+Supply Tender
+Support Platform, jack up
+Trailing Suction Hopper Dredger
+Tug
+Utility Vessel
+Vehicles Carrier
+Water Injection Dredger
+Wind Turbine Installation Platform, jack up
+Work/Repair Vessel
+Yacht
+Yacht (Sailing)
+Yacht Carrier, semi submersible
