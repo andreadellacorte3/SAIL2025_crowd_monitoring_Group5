@@ -20,7 +20,7 @@ from src.events import load_sensors, sensor_totals
 from src.flow import load_effective_widths, flow_per_metre
 from src.trains import train_counts
 from src.sensor_status import LOS_LIMITS, level_of_service, find_off_sensors, off_periods
-
+import os
 
 # Colour of each level of service: green when it is fine, then yellow and red, black for a crisis (NFC1).
 # Every level is darker than the one before, so the levels can be told apart also without seeing colours.
@@ -36,6 +36,95 @@ HIGHLIGHT_THRESHOLD = {"SAIL walkway": 49,"Ferry landing": 49,"City centre stree
 MODERATE_THRESHOLD = {"SAIL walkway": 35,"Ferry landing": 35,"City centre street": 35}
 
 AMSTERDAM_CENTRAAL = {"lat": 52.3789, "lon": 4.9003}
+
+
+@st.cache_data(show_spinner = False)
+def get_processed_vessels():
+    csv_file = "Vesselposition_data_20-24Aug2025.csv"
+    if not os.path.exists(csv_file):
+        csv_file = os.path.join("data", "Vesselposition_data_20-24Aug2025.csv")
+
+    cols_to_load = [
+        "mmsi-number", 
+        "name", 
+        "destination", 
+        "sub-category", 
+        "upload-timestamp",  
+        "update-time", 
+        "lat", 
+        "lon", 
+        "orientation"
+    ]
+    
+    vessels_df = pd.read_csv(csv_file, engine = "pyarrow", usecols = cols_to_load)
+
+    mask_1 = ["Exhibition Vessel","Frigate","Museum, Stationary",
+        "Passenger Ship","Passenger/Cruise","Sail Training Ship",
+        "Sailing Vessel","Yacht","Yacht (Sailing)",]
+    # # Time conversion
+    # vessels_df["hourminute"] = (
+    #     pd.to_datetime(
+    #         vessels_df["upload-timestamp"], utc=True, format="ISO8601")
+    #     .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int))
+
+    # Filter sail destinations
+    sail_destinations = vessels_df[
+        vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
+
+    is_target_cat = vessels_df["sub-category"].isin(mask_1)
+    is_sail_dest = (
+        vessels_df["sub-category"].isna() 
+        & vessels_df["destination"].str.contains("SAIL", case=False, na=False)
+    )
+
+    ships_with_data = vessels_df[is_target_cat | is_sail_dest].dropna(subset=["lat", "lon"])    
+
+    del vessels_df
+
+    # if (
+    #     "update-time" not in ships_with_data.columns
+    #     and "upload-timestamp" in ships_with_data.columns
+    # ):
+    #     ships_with_data["update-time"] = ships_with_data["upload-timestamp"]
+
+    ships_with_data["update-time"] = pd.to_datetime(
+        ships_with_data["update-time"]
+    )
+
+    # if "speed-in-centimeters-per-second" in ships_with_data.columns:
+    #     ships_with_data["nodes_speed"] = (
+    #         ships_with_data["speed-in-centimeters-per-second"] * 0.0194384
+    #     ).round(1)
+
+
+    # if (
+    #     "latitude" in ships_with_data.columns
+    #     and "lat" not in ships_with_data.columns
+    # ):
+    #     ships_with_data["lat"] = ships_with_data["latitude"]
+    # if (
+    #     "longitude" in ships_with_data.columns
+    #     and "lon" not in ships_with_data.columns
+    # ):
+    #     ships_with_data["lon"] = ships_with_data["longitude"]
+
+    columns_to_be_used = [
+        "mmsi-number",
+        "name",
+        "lat",
+        "lon",
+        "update-time",
+        "orientation",
+    ]
+
+    ships_with_data = ships_with_data[columns_to_be_used].dropna(subset=["lat", "lon"])
+    return (
+        ships_with_data
+        .sort_values(by=["mmsi-number", "update-time"])
+        .reset_index(drop=True)
+        )
+
+
 
 
 def generate_arc_polygon(lon, lat, direction_degrees, count, base_radius=1):
@@ -340,7 +429,7 @@ def update_visuals(chosen_time: datetime.time):
                 get_fill_color=[40, 70, 160]))
 
         if "Vessels" in selected_layers:
-            pass # layers.append(vessels_layer) when vessels_layer is defined (FO3)
+            pass #layers.append(vessels_layer) 
 
         # The map is plotted
         st.pydeck_chart(pdk.Deck(layers=layers,
@@ -373,6 +462,12 @@ st.set_page_config(page_title="SAIL 2025 crowd monitoring dashboard", layout="wi
 st.title("SAIL 2025 crowd monitoring dashboard", anchor = False)
 st.sidebar.header("Filters")
 
+with st.spinner("Processing 4.7 GB vessel dataset. This will take a moment..."):
+    vessels_data = get_processed_vessels()
+    
+if "toast_shown" not in st.session_state:
+    st.session_state.toast_shown = True
+    st.toast("Vessel data loaded successfully!", icon = "✅")
 
 crowd_count_data = load_data()
 program  = load_program()
