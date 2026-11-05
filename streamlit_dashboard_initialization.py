@@ -255,7 +255,7 @@ def update_visuals(chosen_time: datetime.time):
     time_label = chosen_datetime.strftime("%A %d %B %Y, %H:%M") + "-" + interval_end.strftime("%H:%M")
 
     if chosen_datetime not in totals.index:
-        visuals.warning("There are no sensor data for " + time_label)
+        st.warning("There are no sensor data for " + time_label)
         return
 
     # One row per sensor with what it measured at the chosen moment
