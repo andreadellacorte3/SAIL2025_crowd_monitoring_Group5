@@ -490,6 +490,7 @@ time_slider = st.sidebar.empty()
 chosen_time = time_slider.slider(value = datetime.time(14),label = "Time",format = "HH:mm",min_value = min_time,max_value = max_time,
     step = datetime.timedelta(minutes = 3))
     # key = "saved_time"
+time_container = st.sidebar.container()
 
 
 chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
@@ -520,11 +521,11 @@ alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_
 alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
 
 update_visuals(chosen_time = chosen_time)
-col1, col2 = st.sidebar.columns(2)
+col1, col2 = time_container.columns(2)
 play = col1.empty()
 stop = col2.button("⏹  Stop")
-speed = st.sidebar.number_input("Play speed",value = 1.0,min_value = 0.0,step = 1.0)
-
+speed = time_container.number_input("Play speed",value = 1.0,min_value = 0.0,step = 1.0)
+time_container.divider()
 
 if play.button("▶  Play"):
     today = datetime.date.today()
