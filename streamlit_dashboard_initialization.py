@@ -164,7 +164,7 @@ def load_trains():
     trains = train_counts()
     trains.index = trains.index.tz_localize(None)   # same clock time as the sensor data
     return trains
-
+@st.cache_data(show_spinner = False)
 def compute_alarms(flow, off, sensors, thresholds, min_intervals = 1):
     """Boolean table (same shape as flow): True when a sensor is in alarm at that interval.
 
@@ -238,8 +238,17 @@ def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
     st.dataframe(summary[summary["alarm episodes"] > 0])
     st.bar_chart(summary["alarm episodes"])
 
-
+@st.fragment
 def update_visuals(chosen_time: datetime.time):
+    st.header("IJ's map")
+    selected_layers = st.pills(
+        "Map layers",
+        options = ["Sensors", "Trains", "Vessels"],
+        selection_mode = "multi", 
+        default = ["Sensors"],
+        key = "map_layers_pills"
+        )
+
     chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
     interval_end = chosen_datetime + datetime.timedelta(minutes = 3)
     # FC2: every view says which moment its data belong to
@@ -323,115 +332,120 @@ def update_visuals(chosen_time: datetime.time):
         longitude = (in_view["lon"].min() + in_view["lon"].max()) / 2,
         zoom = zoom)
 
-    with visuals.container():
-        st.subheader("Data of " + time_label)   # FC2
+    # with visuals.container():
+    st.subheader("Data of " + time_label)   # FC2
 
-        # The most critical place in view, readable at a glance (NFO1)
-        active_in_view = in_view[~in_view["off"]]
-        col_a, col_b, col_c = st.columns(3)
-        if len(active_in_view) > 0:
-            busiest = active_in_view["flow"].idxmax()
-            col_a.metric("Highest flow per metre", str(round(active_in_view.loc[busiest, "flow"], 1)) + " persons/m/min")
-            col_a.caption(active_in_view.loc[busiest, "location_name"] + " (" + busiest + "), level " + active_in_view.loc[busiest, "los"])
-        col_b.metric("Sensors off", str(int(in_view["off"].sum())) + " of " + str(len(in_view)))
-        col_c.metric("Train arrivals at Amsterdam Centraal", int(trains.loc[chosen_datetime, "arrivals"]))
+    # The most critical place in view, readable at a glance (NFO1)
+    active_in_view = in_view[~in_view["off"]]
+    col_a, col_b, col_c = st.columns(3)
+    if len(active_in_view) > 0:
+        busiest = active_in_view["flow"].idxmax()
+        col_a.metric("Highest flow per metre", str(round(active_in_view.loc[busiest, "flow"], 1)) + " persons/m/min")
+        col_a.caption(active_in_view.loc[busiest, "location_name"] + " (" + busiest + "), level " + active_in_view.loc[busiest, "los"])
+    col_b.metric("Sensors off", str(int(in_view["off"].sum())) + " of " + str(len(in_view)))
+    col_c.metric("Train arrivals at Amsterdam Centraal", int(trains.loc[chosen_datetime, "arrivals"]))
 
-        # Creates the layers to plot based on the previous data
-        crowd_count_position_layer = pdk.Layer("ScatterplotLayer",now,
+    # Creates the layers to plot based on the previous data
+    crowd_count_position_layer = pdk.Layer("ScatterplotLayer",now,
+        pickable=True,
+        opacity=0.9,
+        stroked=True,
+        filled=True,
+        line_width_min_pixels=1,
+        radius_min_pixels=6,
+        get_position= "[lon,lat]",
+        get_radius="marker_radius",
+        get_fill_color="marker_color",
+        get_line_color=[0, 0, 0])
+
+    crowd_count_layer = pdk.Layer("PolygonLayer",crowd_sensor_time_data,
+        get_polygon="polygon",
+        get_fill_color='color',
+        get_line_color=[60, 60, 60],
+        line_width_min_pixels=1,
+        stroked=True,
+        filled=True,
+        extruded=False,
+        wireframe=False,
+        pickable=True)
+
+    # A black ring around the locations above the threshold (FC5)
+    highlight_layer = pdk.Layer("ScatterplotLayer",now[now["above_threshold"]],
+        pickable=False,
+        stroked=True,
+        filled=False,
+        get_position="[lon,lat]",
+        get_radius=70,
+        radius_min_pixels=14,
+        line_width_min_pixels=4,
+        get_line_color=[0, 0, 0])
+
+    label_layer = pdk.Layer("TextLayer",now[now["label"] != ""],
+        get_position="[lon,lat]",
+        get_text="label",
+        get_size=14,
+        get_color=[0, 0, 0],
+        get_pixel_offset=[0, -22],
+        background=True,
+        get_background_color=[255, 255, 255, 220])
+
+    layers = []
+    if "Sensors" in selected_layers:
+        layers.append(crowd_count_position_layer)
+        layers.append(crowd_count_layer)
+        layers.append(highlight_layer)
+        layers.append(label_layer)
+
+    if "Trains" in selected_layers:
+        arrivals = int(trains.loc[chosen_datetime, "arrivals"])
+        departures = int(trains.loc[chosen_datetime, "departures"])
+        station = pd.DataFrame([{
+            "lat": AMSTERDAM_CENTRAAL["lat"],
+            "lon": AMSTERDAM_CENTRAAL["lon"],
+            "radius": 30 + 25 * arrivals,
+            "tooltip-info": "Amsterdam Centraal\nTime: " + time_label +
+                "\nTrain arrivals: " + str(arrivals) + "\nTrain departures: " + str(departures),
+        }])
+        layers.append(pdk.Layer("ScatterplotLayer",
+            station,
             pickable=True,
-            opacity=0.9,
-            stroked=True,
-            filled=True,
-            line_width_min_pixels=1,
-            radius_min_pixels=6,
-            get_position= "[lon,lat]",
-            get_radius="marker_radius",
-            get_fill_color="marker_color",
-            get_line_color=[0, 0, 0])
-
-        crowd_count_layer = pdk.Layer("PolygonLayer",crowd_sensor_time_data,
-            get_polygon="polygon",
-            get_fill_color='color',
-            get_line_color=[60, 60, 60],
-            line_width_min_pixels=1,
-            stroked=True,
-            filled=True,
-            extruded=False,
-            wireframe=False,
-            pickable=True)
-
-        # A black ring around the locations above the threshold (FC5)
-        highlight_layer = pdk.Layer("ScatterplotLayer",now[now["above_threshold"]],
-            pickable=False,
-            stroked=True,
-            filled=False,
+            opacity=0.6,
             get_position="[lon,lat]",
-            get_radius=70,
-            radius_min_pixels=14,
-            line_width_min_pixels=4,
-            get_line_color=[0, 0, 0])
+            get_radius="radius",
+            get_fill_color=[40, 70, 160]))
 
-        label_layer = pdk.Layer("TextLayer",now[now["label"] != ""],
-            get_position="[lon,lat]",
-            get_text="label",
-            get_size=14,
-            get_color=[0, 0, 0],
-            get_pixel_offset=[0, -22],
-            background=True,
-            get_background_color=[255, 255, 255, 220])
+    if "Vessels" in selected_layers:
+        pass #layers.append(vessels_layer) 
 
-        layers = []
-        if "Sensors" in selected_layers:
-            layers.append(crowd_count_position_layer)
-            layers.append(crowd_count_layer)
-            layers.append(highlight_layer)
-            layers.append(label_layer)
-
-        if "Trains" in selected_layers:
-            arrivals = int(trains.loc[chosen_datetime, "arrivals"])
-            departures = int(trains.loc[chosen_datetime, "departures"])
-            station = pd.DataFrame([{
-                "lat": AMSTERDAM_CENTRAAL["lat"],
-                "lon": AMSTERDAM_CENTRAAL["lon"],
-                "radius": 30 + 25 * arrivals,
-                "tooltip-info": "Amsterdam Centraal\nTime: " + time_label +
-                    "\nTrain arrivals: " + str(arrivals) + "\nTrain departures: " + str(departures),
-            }])
-            layers.append(pdk.Layer("ScatterplotLayer",
-                station,
-                pickable=True,
-                opacity=0.6,
-                get_position="[lon,lat]",
-                get_radius="radius",
-                get_fill_color=[40, 70, 160]))
-
-        if "Vessels" in selected_layers:
-            pass #layers.append(vessels_layer) 
-
-        # The map is plotted
-        st.pydeck_chart(pdk.Deck(layers=layers,
+    # The map is plotted
+    st.pydeck_chart(
+        pdk.Deck(
+            layers=layers,
             tooltip = {"text": "{tooltip-info}"},
             initial_view_state = view,
-            map_style = "light"))
-        show_legend()
+            map_style = "light"
+            ),
+        key = "IJ Map"
+        )
+    show_legend()
 
 
-        st.header("Ongoing events")
-        st.caption("Events running on " + time_label)   # FC2
-        st.dataframe(program[
-            (program["start_datetime"] <= chosen_datetime) &
-            (program["end_datetime"] >= chosen_datetime)]
-            [["Start","End"]])
+    st.header("Ongoing events")
+    st.caption("Events running on " + time_label)   # FC2
+    st.dataframe(program[
+        (program["start_datetime"] <= chosen_datetime) &
+        (program["end_datetime"] >= chosen_datetime)]
+        [["Start","End"]])
 
-        if show_alarms:
-            st.header("Flow alarms per sensor")
-            tab_critical, tab_moderate = st.tabs(["Critical", "Moderate"])
-            with tab_critical:
-                show_alarm_summary(alarms_critical, in_view, HIGHLIGHT_THRESHOLD, chosen_datetime)
-            with tab_moderate:
-                show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime)
+    if show_alarms:
+        st.header("Flow alarms per sensor")
+        tab_critical, tab_moderate = st.tabs(["Critical", "Moderate"])
+        with tab_critical:
+            show_alarm_summary(alarms_critical, in_view, HIGHLIGHT_THRESHOLD, chosen_datetime)
+        with tab_moderate:
+            show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime)
 
-        return
+    return
 
 
 # set the streamlit app main page configuration
@@ -490,12 +504,11 @@ non_sensors = ("hour","timestamp","minute","day","month","weekday","is_weekend")
 
 
 
-st.header("IJ's map")
-selected_layers = st.pills("Map layers",options = ["Sensors", "Trains", "Vessels"],selection_mode = "multi", default = ["Sensors"])
-visuals = st.empty()
-
-alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_min_intervals)
-alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
+update_visuals(chosen_time = chosen_time)
+# visuals = st.empty()
+if show_alarms:
+    alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_min_intervals)
+    alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
 
 update_visuals(chosen_time = chosen_time)
 col1, col2 = time_container.columns(2)
