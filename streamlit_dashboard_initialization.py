@@ -40,6 +40,10 @@ AMSTERDAM_CENTRAAL = {"lat": 52.3789, "lon": 4.9003}
 
 @st.cache_data(show_spinner = False)
 def get_processed_vessels():
+    parquet_cache = "data/processed_vessels.parquet"
+    if os.path.exists(parquet_cache):
+        return pd.read_parquet(parquet_cache)
+
     csv_file = "Vesselposition_data_20-24Aug2025.csv"
     if not os.path.exists(csv_file):
         csv_file = os.path.join("data", "Vesselposition_data_20-24Aug2025.csv")
@@ -61,15 +65,6 @@ def get_processed_vessels():
     mask_1 = ["Exhibition Vessel","Frigate","Museum, Stationary",
         "Passenger Ship","Passenger/Cruise","Sail Training Ship",
         "Sailing Vessel","Yacht","Yacht (Sailing)",]
-    # # Time conversion
-    # vessels_df["hourminute"] = (
-    #     pd.to_datetime(
-    #         vessels_df["upload-timestamp"], utc=True, format="ISO8601")
-    #     .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int))
-
-    # Filter sail destinations
-    sail_destinations = vessels_df[
-        vessels_df["destination"].str.contains("SAIL", case=False, na=False)]
 
     is_target_cat = vessels_df["sub-category"].isin(mask_1)
     is_sail_dest = (
@@ -81,32 +76,11 @@ def get_processed_vessels():
 
     del vessels_df
 
-    # if (
-    #     "update-time" not in ships_with_data.columns
-    #     and "upload-timestamp" in ships_with_data.columns
-    # ):
-    #     ships_with_data["update-time"] = ships_with_data["upload-timestamp"]
-
-    ships_with_data["update-time"] = pd.to_datetime(
-        ships_with_data["update-time"]
+    ships_with_data["update-time"] = (
+        pd.to_datetime(
+        ships_with_data["update-time"], utc=True, format="ISO8601", cache = True)
+         .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int)
     )
-
-    # if "speed-in-centimeters-per-second" in ships_with_data.columns:
-    #     ships_with_data["nodes_speed"] = (
-    #         ships_with_data["speed-in-centimeters-per-second"] * 0.0194384
-    #     ).round(1)
-
-
-    # if (
-    #     "latitude" in ships_with_data.columns
-    #     and "lat" not in ships_with_data.columns
-    # ):
-    #     ships_with_data["lat"] = ships_with_data["latitude"]
-    # if (
-    #     "longitude" in ships_with_data.columns
-    #     and "lon" not in ships_with_data.columns
-    # ):
-    #     ships_with_data["lon"] = ships_with_data["longitude"]
 
     columns_to_be_used = [
         "mmsi-number",
@@ -118,11 +92,14 @@ def get_processed_vessels():
     ]
 
     ships_with_data = ships_with_data[columns_to_be_used].dropna(subset=["lat", "lon"])
-    return (
+    to_return = (
         ships_with_data
         .sort_values(by=["mmsi-number", "update-time"])
         .reset_index(drop=True)
         )
+
+    to_return.to_parquet(parquet_cache, index = False)
+    return to_return
 
 
 
