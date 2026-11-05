@@ -503,12 +503,32 @@ def sync_time():
     if "main_time_slider" in st.session_state:
         st.session_state.current_time = st.session_state.main_time_slider
 
-time_slider = st.sidebar.empty()
-chosen_time = time_slider.slider(value = datetime.time(14),label = "Time",format = "HH:mm",min_value = min_time,max_value = max_time,
-    step = datetime.timedelta(minutes = 3), key = "main_time_slider", on_change= sync_time())
-    # key = "saved_time"
-time_container = st.sidebar.container()
+# --- ADVANCE TIME BEFORE SLIDER RENDERS ---
+if st.session_state.playing:
+    today = datetime.date.today()
+    current_dt = datetime.datetime.combine(today, st.session_state.current_time)
+    next_dt = current_dt + datetime.timedelta(minutes=3)
+    
+    if next_dt.time() > max_time:
+        st.session_state.playing = False
+    else:
+        st.session_state.current_time = next_dt.time()
+        st.session_state.main_time_slider = next_dt.time() # Safely updates the slider
 
+time_slider = st.sidebar.empty()
+chosen_time = time_slider.slider(
+    value=st.session_state.current_time,  # NO MORE HARDCODED 14:00
+    label="Time",
+    format="HH:mm",
+    min_value=min_time,
+    max_value=max_time,
+    step=datetime.timedelta(minutes=3), 
+    key="main_time_slider", 
+    on_change=sync_time
+)
+
+chosen_time = st.session_state.current_time
+time_container = st.sidebar.container()
 
 chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
 
@@ -560,17 +580,10 @@ time_container.divider()
 #         update_visuals(chosen_time)
 #         time.sleep(0.5/speed)
 
-update_visuals(chosen_time = chosen_time)
+update_visuals(chosen_time=chosen_time)
 
+# --- SLEEP AND RERUN AT THE END ---
 if st.session_state.playing:
-    today = datetime.date.today()
-    current_dt = datetime.datetime.combine(today, chosen_time)
-    next_dt = current_dt + datetime.timedelta(minutes=3)
-    
-    if next_dt.time() > max_time:
-        st.session_state.playing = False
-        st.rerun()
-    else:
-        st.session_state.current_time = next_dt.time()
-        time.sleep(0.5 / speed)
-        st.rerun()
+    safe_speed = max(speed, 0.1) 
+    time.sleep(0.5 / safe_speed)
+    st.rerun()
