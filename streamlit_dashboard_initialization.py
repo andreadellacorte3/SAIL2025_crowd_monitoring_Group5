@@ -53,7 +53,6 @@ def get_processed_vessels():
         "name", 
         "destination", 
         "sub-category", 
-        "upload-timestamp",  
         "update-time", 
         "lat", 
         "lon", 
@@ -79,7 +78,7 @@ def get_processed_vessels():
     ships_with_data["update-time"] = (
         pd.to_datetime(
         ships_with_data["update-time"], utc=True, format="ISO8601", cache = True)
-         .dt.tz_convert("Europe/Amsterdam").dt.strftime("%H%M").astype(int)
+         .dt.tz_convert("Europe/Amsterdam")#.dt.strftime("%H%M").astype(int)
     )
 
     columns_to_be_used = [
@@ -211,8 +210,11 @@ def show_legend():
         else:
             text += box(color) + f"{level} above {lower}"
     text += "<br>" + box(OFF_COLOR) + "sensor off, no data" + ring + "above the threshold"
+    text += (f'<span style="display:inline-block;width:14px;height:14px;background:purple;border-radius:50%;border:1px solid #444;vertical-align:middle;margin:0 4px 0 12px"></span>' +
+        ' Vessels')
+
     text += "&nbsp;&nbsp;&nbsp;&nbsp;Arc size = pedestrians counted, one arc per walking direction"
-    st.markdown(text, unsafe_allow_html = True)
+    st.markdown(text, unsafe_allow_html = True, width = "stretch")
 
 
 def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
@@ -238,7 +240,7 @@ def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
     st.dataframe(summary[summary["alarm episodes"] > 0])
     st.bar_chart(summary["alarm episodes"])
 
-@st.fragment
+# @st.fragment
 def update_visuals(chosen_time: datetime.time):
     st.header("IJ's map")
     selected_layers = st.pills(
@@ -389,11 +391,27 @@ def update_visuals(chosen_time: datetime.time):
         background=True,
         get_background_color=[255, 255, 255, 220])
 
+    vessels_now = vessels_data[
+            (vessels_data["update-time"] >= pd.Timestamp(chosen_datetime, tz="Europe/Amsterdam")) &
+            (vessels_data["update-time"] <= pd.Timestamp(chosen_datetime, tz="Europe/Amsterdam") + datetime.timedelta(minutes = 2))]
+    vessels_layer = pdk.Layer(
+        "ScatterplotLayer",
+        vessels_now,
+        stroked=True,
+        filled=True,
+        line_width_min_pixels=1,
+        radius_min_pixels=6,
+        get_position= "[lon,lat]",
+        get_radius=10,
+        get_fill_color=[128,0,128],
+        get_line_color=[0, 0, 0])
+
+
     layers = []
     if "Sensors" in selected_layers:
         layers.append(crowd_count_position_layer)
         layers.append(crowd_count_layer)
-        layers.append(highlight_layer)
+        layers.append(highlight_layer)  
         layers.append(label_layer)
 
     if "Trains" in selected_layers:
@@ -415,7 +433,7 @@ def update_visuals(chosen_time: datetime.time):
             get_fill_color=[40, 70, 160]))
 
     if "Vessels" in selected_layers:
-        pass #layers.append(vessels_layer) 
+        layers.append(vessels_layer) 
 
     # The map is plotted
     st.pydeck_chart(
@@ -476,10 +494,18 @@ chosen_date = st.sidebar.date_input(label = "Date",format = "DD/MM/YYYY",min_val
 min_time = datetime.time(0, 0)
 max_time = datetime.time(23, 57)
 
+if "current_time" not in st.session_state:
+    st.session_state.current_time = datetime.time(14, 0)
+if "playing" not in st.session_state:
+    st.session_state.playing = False
+
+def sync_time():
+    if "main_time_slider" in st.session_state:
+        st.session_state.current_time = st.session_state.main_time_slider
 
 time_slider = st.sidebar.empty()
 chosen_time = time_slider.slider(value = datetime.time(14),label = "Time",format = "HH:mm",min_value = min_time,max_value = max_time,
-    step = datetime.timedelta(minutes = 3))
+    step = datetime.timedelta(minutes = 3), key = "main_time_slider", on_change= sync_time())
     # key = "saved_time"
 time_container = st.sidebar.container()
 
@@ -504,27 +530,47 @@ non_sensors = ("hour","timestamp","minute","day","month","weekday","is_weekend")
 
 
 
-update_visuals(chosen_time = chosen_time)
 # visuals = st.empty()
 if show_alarms:
     alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_min_intervals)
     alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
 
-update_visuals(chosen_time = chosen_time)
+# update_visuals(chosen_time = chosen_time)
 col1, col2 = time_container.columns(2)
-play = col1.empty()
+play = col1.button("▶  Play")
 stop = col2.button("⏹  Stop")
+if play:
+    st.session_state.playing = True
+    st.rerun()
+if stop:
+    st.session_state.playing = False
+    st.rerun()
 speed = time_container.number_input("Play speed",value = 1.0,min_value = 0.0,step = 1.0)
 time_container.divider()
 
-if play.button("▶  Play"):
+# if play.button("▶  Play"):
+#     today = datetime.date.today()
+#     max_dt = datetime.datetime.combine(today,max_time)
+#     chosen_dt = datetime.datetime.combine(today,chosen_time)
+#     max_range = int((max_dt-chosen_dt)/ datetime.timedelta(minutes = 3)) + 1
+#     range_to_go = [(chosen_dt + datetime.timedelta(minutes = i*3)).time() for i in range(max_range)]
+#     for i in range_to_go:
+#         chosen_time = time_slider.slider(label = "Time",min_value=min_time,max_value=max_time,value=i,
+#             step=datetime.timedelta(minutes=3))
+#         update_visuals(chosen_time)
+#         time.sleep(0.5/speed)
+
+update_visuals(chosen_time = chosen_time)
+
+if st.session_state.playing:
     today = datetime.date.today()
-    max_dt = datetime.datetime.combine(today,max_time)
-    chosen_dt = datetime.datetime.combine(today,chosen_time)
-    max_range = int((max_dt-chosen_dt)/ datetime.timedelta(minutes = 3)) + 1
-    range_to_go = [(chosen_dt + datetime.timedelta(minutes = i*3)).time() for i in range(max_range)]
-    for i in range_to_go:
-        chosen_time = time_slider.slider(label = "Time",min_value=min_time,max_value=max_time,value=i,
-            step=datetime.timedelta(minutes=3))
-        update_visuals(chosen_time)
-        time.sleep(0.5/speed)
+    current_dt = datetime.datetime.combine(today, chosen_time)
+    next_dt = current_dt + datetime.timedelta(minutes=3)
+    
+    if next_dt.time() > max_time:
+        st.session_state.playing = False
+        st.rerun()
+    else:
+        st.session_state.current_time = next_dt.time()
+        time.sleep(0.5 / speed)
+        st.rerun()
