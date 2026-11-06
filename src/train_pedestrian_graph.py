@@ -161,7 +161,7 @@ def train_pedestrian_chart(current_datetime: dt.datetime, pedestrian_counts: pd.
 
 def show_trains_impact(current_datetime: dt.datetime):
     """Section of the dashboard matching the target layout style."""
-    st.header("Do train arrivals explain the peaks in the pedestrian counts?", anchor = False)
+    st.header("Train arrivals", anchor = False)
 
     pedestrian_counts, train_arrivals = load_all_data()
     fig, pedestrians, trains = train_pedestrian_chart(current_datetime, pedestrian_counts, train_arrivals)

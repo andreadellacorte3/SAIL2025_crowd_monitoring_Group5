@@ -250,7 +250,7 @@ def update_visuals(chosen_time: datetime.time):
         "Map layers",
         options = ["Sensors", "Trains", "Vessels"],
         selection_mode = "multi", 
-        default = ["Sensors"],
+        default = ["Sensors","Vessels","Trains"],
         key = "map_layers_pills"
         )
 
@@ -593,7 +593,6 @@ update_visuals(chosen_time=chosen_time)
 # The day overview and the event analysis summarise the whole day, so they do not change
 # with the time. They are left out while playing, so the animation stays smooth.
 
-st.caption(f"debug: playing = {st.session_state.playing}")
 show_day_overview(chosen_date, totals, flow, off, vessels_data, sensors, chosen_area)
 show_event_impact(chosen_date)
 
