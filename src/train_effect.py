@@ -1,60 +1,60 @@
-"""Do people near Amsterdam Centraal react to train arrivals? (sub-question 5)
+"""Do people near Amsterdam Centraal react to train arrivals? (SQ4)
 
 Compares the trains per 3 minutes (trains.py) with the pedestrians per 3 minutes at
-the sensors near the station (station_sensors.py), for delays of 0 to 21 minutes.
+the sensors near the station (station_sensors.py). The 3-minute intervals are put in
+groups by the number of trains that arrived in them. For each group we look at the
+people counted in the next 15 minutes, compared with the average of that hour.
 """
-import numpy as np
 import pandas as pd
-import plotly.express as px
 
 from station_sensors import station_counts
 from trains import train_counts
 
 HOURS = (9, 22)   # only compare during the day, when the sensors count most people
 WINDOW = 20       # 20 intervals of 3 minutes = 1 hour
-MAX_LAG = 7       # 7 intervals of 3 minutes = 21 minutes
+AFTER = 5         # the interval of the train and the 4 after it = 15 minutes
+GROUPS = [-1, 1, 2, 3, 10]                  # 0-1 trains, 2, 3, 4 or more
+LABELS = ["0-1", "2", "3", "4 or more"]
 
 
-def remove_daily_pattern(series, window=WINDOW):
-    """Subtract the moving average of the last and next hour.
+def daytime(index):
+    """True for the intervals between HOURS[0] and HOURS[1]."""
+    return (index.hour >= HOURS[0]) & (index.hour < HOURS[1])
 
-    Trains and people both increase during the day. Without this step they look related
-    just because of the time of day, not because people react to trains.
+
+def compared_to_hour(series, window=WINDOW):
+    """Count in % above (+) or below (-) the average of the hour around it.
+
+    People increase during the day. Without this step a raw count says more about
+    the time of day than about the trains.
     """
-    return series - series.rolling(window, center=True, min_periods=window // 2).mean()
+    average = series.rolling(window, center=True, min_periods=window // 2).mean()
+    return (series / average - 1) * 100
 
 
-def lagged_correlations(trains, people, max_lag=MAX_LAG):
-    """Correlation between the trains and the people counted `lag` intervals later.
+def next_minutes(series, after=AFTER):
+    """For each interval: the mean of compared_to_hour over that interval and the next ones."""
+    relative = compared_to_hour(series)
+    return pd.concat([relative.shift(-k) for k in range(after)], axis=1).mean(axis=1)
 
-    trains: Series with the trains per interval (for example train_counts()["arrivals"]).
-    people: DataFrame with one column per sensor, same intervals as `trains`.
-    Returns a DataFrame with one row per sensor and one column per delay in minutes.
-    Intervals in which a sensor was off (NaN) are left out of its correlation.
+
+def people_after_trains(arrivals, people, after=AFTER):
+    """Mean % above or below the hour in the 15 minutes after 0-1, 2, 3 or 4+ train arrivals.
+
+    arrivals: Series with the trains per interval (train_counts()["arrivals"]).
+    people: DataFrame with one column per sensor or area, same intervals as `arrivals`.
+    Returns one row per group of arrivals and one column per sensor or area.
+    Intervals in which a sensor was off (NaN) are left out.
     """
-    trains = remove_daily_pattern(trains)
-    people = people.apply(remove_daily_pattern)
-    daytime = (people.index.hour >= HOURS[0]) & (people.index.hour < HOURS[1])
-
-    result = {}
-    for lag in range(max_lag + 1):
-        later = people.shift(-lag)   # the people counted `lag` intervals after the train
-        result[3 * lag] = [trains[daytime].corr(later[sensor][daytime]) for sensor in people.columns]
-    return pd.DataFrame(result, index=people.columns).rename_axis(columns="delay (minutes)")
-
-
-def correlation_heatmap(correlations, title):
-    """Heat map: sensors on the vertical axis, delay after the train on the horizontal axis."""
-    return px.imshow(correlations, zmin=-0.3, zmax=0.3, color_continuous_scale="RdBu_r",
-                     aspect="auto", labels={"x": "delay after the train (minutes)", "y": "sensor",
-                                            "color": "correlation"}, title=title)
+    day = daytime(people.index)
+    groups = pd.cut(arrivals, GROUPS, labels=LABELS)
+    result = {column: next_minutes(people[column], after)[day].groupby(groups[day], observed=True).mean()
+              for column in people.columns}
+    return pd.DataFrame(result).rename_axis(index="trains arrived in 3 minutes")
 
 
 if __name__ == "__main__":
     people = station_counts()
     trains = train_counts()
-    arrivals = lagged_correlations(trains["arrivals"], people)
-    print(arrivals.round(2).to_string())
-    total = lagged_correlations(trains["arrivals"], people.sum(axis=1, skipna=False).to_frame("total"))
-    print("\nTotal of all sensors (intervals with a sensor off are left out):")
-    print(total.round(2).to_string())
+    people["all sensors"] = people.sum(axis=1, skipna=False)
+    print(people_after_trains(trains["arrivals"], people).round(1).to_string())
