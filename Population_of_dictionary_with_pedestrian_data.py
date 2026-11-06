@@ -57,11 +57,13 @@ import streamlit as st
 #     data["timestamp"] = df["timestamp"]
 #     return data
 import pandas as pd
+from pathlib import Path
+MODULE_DIR = Path(__file__).resolve().parent
 
 @st.cache_data(show_spinner = False)
 def load_data(        
-    sensor_location_path:str = "data/sensor-location.xlsx", 
-    flow_data_path:str = "data/SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv"
+    sensor_location_path = MODULE_DIR /"data"/"sensor-location.xlsx", 
+    flow_data_path = MODULE_DIR /"data"/"SAIL2025_LVMA_data_3min_20August-25August2025_flow.csv"
     ) -> pd.DataFrame:
     """
     The dataframe has the sensor's names as columns. Some column names are duplicate since each column refers
@@ -120,4 +122,6 @@ def load_data(
     
 
 if __name__ == "__main__":
-    load_data()
+    df = load_data()
+    print(df.head())
+    print(df.columns)
