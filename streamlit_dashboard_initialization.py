@@ -21,6 +21,7 @@ from src.flow import load_effective_widths, flow_per_metre
 from src.trains import train_counts
 from src.sensor_status import LOS_LIMITS, level_of_service, find_off_sensors, off_periods
 from src.event_impact import show_event_impact
+from src.day_overview import show_day_overview
 import os
 
 # Colour of each level of service: green when it is fine, then yellow and red, black for a crisis (NFC1).
@@ -183,7 +184,7 @@ def alarm_summary(alarms, flow, sensors, until = None):
     """One row per sensor: number of alarm episodes, minutes in alarm and peak flow."""
     if until is not None:
         alarms = alarms[alarms.index <= until]
-        flow = flow.loc[alarms.index]
+    flow = flow.loc[alarms.index]   # peak flow of the same period as the alarms (the chosen day)
 
     # an episode starts when the alarm is on now but was off in the previous interval
     starts = alarms & ~alarms.shift(1, fill_value = False)
@@ -218,12 +219,12 @@ def show_legend():
     st.markdown(text, unsafe_allow_html = True, width = "stretch")
 
 
-def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
+def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime, min_intervals, window):
     day_start = datetime.datetime.combine(chosen_date, datetime.time(0, 0))
     day_end = day_start + datetime.timedelta(days = 1)
     day_alarms = level_alarms[(level_alarms.index >= day_start) & (level_alarms.index < day_end)]
 
-    until = current_datetime if alarm_window == "Chosen day until chosen time" else None
+    until = current_datetime if window == "Chosen day until chosen time" else None
     summary = alarm_summary(day_alarms, flow, sensors, until)
 
     # only the sensors of the chosen area (FC4)
@@ -232,8 +233,8 @@ def show_alarm_summary(level_alarms, in_view, thresholds, current_datetime):
 
     limits = ", ".join(k + ": " + str(v) for k, v in thresholds.items())
     st.caption("Flow per metre above the threshold (" + limits + ") for at least "
-               + str(alarm_min_intervals * 3) + " minutes. Off sensors are excluded.")
-
+               + str(min_intervals * 3) + " minutes. Off sensors are excluded.")
+    
     col_x, col_y = st.columns(2)
     col_x.metric("Total alarm episodes", int(summary["alarm episodes"].sum()))
     col_y.metric("Sensors with at least one alarm", int((summary["alarm episodes"] > 0).sum()))
@@ -456,13 +457,26 @@ def update_visuals(chosen_time: datetime.time):
         (program["end_datetime"] >= chosen_datetime)]
         [["Start","End"]])
 
+    st.header("Flow alarms per sensor")
+    # the alarm options only change this section, so they are here and not in the sidebar
+    col_on, col_min, col_window = st.columns(3)
+    show_alarms = col_on.toggle("Count alarms per sensor", key = "show_alarms")
+    min_intervals = col_min.slider("Minimum duration of an alarm (intervals of 3 min)",
+        min_value = 1, max_value = 5, value = 1, disabled = not show_alarms, key = "alarm_min_intervals")
+    window = col_window.radio("Count alarms over",
+        options = ["Whole chosen day", "Chosen day until chosen time"],
+        disabled = not show_alarms, key = "alarm_window")
+
     if show_alarms:
-        st.header("Flow alarms per sensor")
+        alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, min_intervals)
+        alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, min_intervals)
         tab_critical, tab_moderate = st.tabs(["Critical", "Moderate"])
         with tab_critical:
-            show_alarm_summary(alarms_critical, in_view, HIGHLIGHT_THRESHOLD, chosen_datetime)
+            show_alarm_summary(alarms_critical, in_view, HIGHLIGHT_THRESHOLD, chosen_datetime,
+                min_intervals, window)
         with tab_moderate:
-            show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime)
+            show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime,
+                min_intervals, window)
 
     return
 
@@ -536,25 +550,10 @@ chosen_datetime = datetime.datetime.combine(chosen_date,chosen_time)
 # FC4: the part of the IJ to look at (zones of data/external/sensor_zones.csv)
 chosen_area = st.sidebar.selectbox("Area",options = ["Whole IJ"] + sorted(sensors["zone"].dropna().unique()))
 
-st.sidebar.divider()
-show_alarms = st.sidebar.checkbox("Count critical-zone alarms per sensor")
-alarm_min_intervals = st.sidebar.slider("Minimum duration of an alarm (intervals of 3 min)",
-    min_value = 1, max_value = 5, value = 1,
-    disabled = not show_alarms)
-
-alarm_window = st.sidebar.radio("Count alarms over",
-    options = ["Whole chosen day", "Chosen day until chosen time"],
-    disabled = not show_alarms)
-
 non_sensors = ("hour","timestamp","minute","day","month","weekday","is_weekend")
 
 
-
-
 # visuals = st.empty()
-if show_alarms:
-    alarms_critical = compute_alarms(flow, off, sensors, HIGHLIGHT_THRESHOLD, alarm_min_intervals)
-    alarms_moderate = compute_alarms(flow, off, sensors, MODERATE_THRESHOLD, alarm_min_intervals)
 
 # update_visuals(chosen_time = chosen_time)
 col1, col2 = time_container.columns(2)
@@ -582,8 +581,13 @@ time_container.divider()
 #         time.sleep(0.5/speed)
 
 update_visuals(chosen_time=chosen_time)
-  # SQ3: did the SAIL events change the crowds? (separate analysis, src/event_impact.py)
-show_event_impact(chosen_date)
+# The day overview and the event analysis summarise the whole day, so they do not change
+# with the time. They are left out while playing, so the animation stays smooth.
+
+if not st.session_state.playing:
+    show_day_overview(chosen_date, totals, flow, off, vessels_data, sensors, chosen_area)
+    show_event_impact(chosen_date)
+
 # --- SLEEP AND RERUN AT THE END ---
 if st.session_state.playing:
     safe_speed = max(speed, 0.1) 
