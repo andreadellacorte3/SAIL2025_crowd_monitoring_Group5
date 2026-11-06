@@ -7,7 +7,7 @@ Status: Submitted. The proposal dates from 2 October 2026 and the final report i
 ## What is in this repository
 
 - `Report.ipynb`: the project notebook. It is the final report and it walks through the dashboard and how it answers the research questions.
-- `Report.pdf`: a PDF export of the notebook, readable without Python.
+- `Report.html`: a HTML export of the notebook, readable without Python.
 - `requirements.txt`: the Python packages the project needs.
 - `streamlit_dashboard_initialization.py`: It is the main script in this repository. It combines all other scripts necessary to run the dashboard. 
 - `Population_of_dictionary_with_pedestrian_data.py`: a script that reads the sensor counts and locations and puts them in a dataframe.
