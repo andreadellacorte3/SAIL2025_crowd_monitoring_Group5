@@ -161,9 +161,7 @@ def train_pedestrian_chart(current_datetime: dt.datetime, pedestrian_counts: pd.
 
 def show_trains_impact(current_datetime: dt.datetime):
     """Section of the dashboard matching the target layout style."""
-    st.divider()
-    st.header("Do train arrivals explain the peaks in the pedestrian counts?")
-    st.caption("A comparison between smoothed train arrivals at the station and the aggregated pedestrian traffic from nearby sensors.")
+    st.header("Do train arrivals explain the peaks in the pedestrian counts?", anchor = False)
 
     pedestrian_counts, train_arrivals = load_all_data()
     fig, pedestrians, trains = train_pedestrian_chart(current_datetime, pedestrian_counts, train_arrivals)
@@ -172,7 +170,6 @@ def show_trains_impact(current_datetime: dt.datetime):
     st.plotly_chart(fig)
 
     # Add summary metrics underneath the chart in three columns
-    st.divider()
     col1, col2, col3 = st.columns(3)
     
     max_pedestrians = pedestrians.max() if not pedestrians.empty else 0
