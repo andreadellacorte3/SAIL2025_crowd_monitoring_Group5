@@ -395,8 +395,8 @@ def update_visuals(chosen_time: datetime.time):
         get_background_color=[255, 255, 255, 220])
 
     vessels_now = vessels_data[
-            (vessels_data["update-time"] >= pd.Timestamp(chosen_datetime, tz="Europe/Amsterdam")) &
-            (vessels_data["update-time"] <= pd.Timestamp(chosen_datetime, tz="Europe/Amsterdam") + datetime.timedelta(minutes = 2))]
+            (vessels_data["update-time"] <= pd.Timestamp(chosen_datetime, tz="Europe/Amsterdam") + datetime.timedelta(minutes = 2))
+        ].drop_duplicates(subset="mmsi-number", keep = "last")
     vessels_layer = pdk.Layer(
         "ScatterplotLayer",
         vessels_now,
@@ -520,6 +520,8 @@ if "playing" not in st.session_state:
 def sync_time():
     if "main_time_slider" in st.session_state:
         st.session_state.current_time = st.session_state.main_time_slider
+    else:
+        st.session_state.main_time_slider = st.session_state.current_time
 
 # --- ADVANCE TIME BEFORE SLIDER RENDERS ---
 if st.session_state.playing:
@@ -534,8 +536,12 @@ if st.session_state.playing:
         st.session_state.main_time_slider = next_dt.time() # Safely updates the slider
 
 time_slider = st.sidebar.empty()
+
+if "main_time_slider" not in st.session_state:
+    st.session_state.main_time_slider = st.session_state.current_time
+
 chosen_time = time_slider.slider(
-    value=st.session_state.current_time,  # NO MORE HARDCODED 14:00
+    # value=st.session_state.current_time,  # NO MORE HARDCODED 14:00
     label="Time",
     format="HH:mm",
     min_value=min_time,
@@ -568,7 +574,7 @@ if play:
 if stop:
     st.session_state.playing = False
     st.rerun()
-speed = time_container.number_input("Play speed",value = 1.0,min_value = 0.0,step = 1.0)
+speed = time_container.number_input("Play speed",value = 1,min_value = 0,step = 1)
 time_container.divider()
 
 # if play.button("▶  Play"):
@@ -594,5 +600,5 @@ if not st.session_state.playing:
 # --- SLEEP AND RERUN AT THE END ---
 if st.session_state.playing:
     safe_speed = max(speed, 0.1) 
-    time.sleep(0.5 / safe_speed)
+    time.sleep(1 / safe_speed)
     st.rerun()
