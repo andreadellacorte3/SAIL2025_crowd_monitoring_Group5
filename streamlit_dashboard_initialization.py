@@ -12,7 +12,7 @@ import streamlit as st
 import datetime
 import pydeck as pdk
 import pandas as pd
-from Population_of_dictionary_with_pedestrian_data import load_data
+from Population_of_dictionary_with_pedestrian_data import load_data as load_pedestrian_data
 from find_start_end_datetimes import load_program
 import time
 import numpy as np
@@ -21,6 +21,7 @@ from src.flow import load_effective_widths, flow_per_metre
 from src.trains import train_counts
 from src.sensor_status import LOS_LIMITS, level_of_service, find_off_sensors, off_periods
 from src.event_impact import show_event_impact
+from src.train_pedestrian_graph import show_trains_impact
 import os
 
 # Colour of each level of service: green when it is fine, then yellow and red, black for a crisis (NFC1).
@@ -464,6 +465,8 @@ def update_visuals(chosen_time: datetime.time):
         with tab_moderate:
             show_alarm_summary(alarms_moderate, in_view, MODERATE_THRESHOLD, chosen_datetime)
 
+    show_trains_impact(chosen_datetime)
+    
     return
 
 
@@ -479,7 +482,7 @@ if "toast_shown" not in st.session_state:
     st.session_state.toast_shown = True
     st.toast("Vessel data loaded successfully!", icon = "✅")
 
-crowd_count_data = load_data()
+crowd_count_data = load_pedestrian_data()
 program  = load_program()
 sensors, totals, flow, off, off_list = prepare_sensor_data(crowd_count_data)
 trains = load_trains()
