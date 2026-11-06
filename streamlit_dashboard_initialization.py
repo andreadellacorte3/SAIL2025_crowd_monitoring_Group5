@@ -593,9 +593,9 @@ update_visuals(chosen_time=chosen_time)
 # The day overview and the event analysis summarise the whole day, so they do not change
 # with the time. They are left out while playing, so the animation stays smooth.
 
-if not st.session_state.playing:
-    show_day_overview(chosen_date, totals, flow, off, vessels_data, sensors, chosen_area)
-    show_event_impact(chosen_date)
+st.caption(f"debug: playing = {st.session_state.playing}")
+show_day_overview(chosen_date, totals, flow, off, vessels_data, sensors, chosen_area)
+show_event_impact(chosen_date)
 
 # --- SLEEP AND RERUN AT THE END ---
 if st.session_state.playing:
