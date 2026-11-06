@@ -1,4 +1,4 @@
-"""Train arrivals and departures at Amsterdam Centraal during SAIL 2025 (sub-question 5).
+"""Train arrivals and departures at Amsterdam Centraal during SAIL 2025 (SQ4).
 
 Data: open train archive of Rijden de Treinen,
 https://www.rijdendetreinen.nl/en/open-data/train-archive
