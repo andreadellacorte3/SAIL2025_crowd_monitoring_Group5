@@ -20,6 +20,7 @@ from src.events import load_sensors, sensor_totals
 from src.flow import load_effective_widths, flow_per_metre
 from src.trains import train_counts
 from src.sensor_status import LOS_LIMITS, level_of_service, find_off_sensors, off_periods
+from src.event_impact import show_event_impact
 import os
 
 # Colour of each level of service: green when it is fine, then yellow and red, black for a crisis (NFC1).
@@ -581,7 +582,8 @@ time_container.divider()
 #         time.sleep(0.5/speed)
 
 update_visuals(chosen_time=chosen_time)
-
+  # SQ3: did the SAIL events change the crowds? (separate analysis, src/event_impact.py)
+show_event_impact(chosen_date)
 # --- SLEEP AND RERUN AT THE END ---
 if st.session_state.playing:
     safe_speed = max(speed, 0.1) 
