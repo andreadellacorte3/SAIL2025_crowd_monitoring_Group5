@@ -503,14 +503,14 @@ min_date = min(program["start_datetime"].dt.date)
 max_date = max(program["end_datetime"].dt.date)
 
 
-chosen_date = st.sidebar.date_input(label = "Date",format = "DD/MM/YYYY",min_value = min_date,max_value = max_date)
+chosen_date = st.sidebar.date_input(label = "Date",format = "DD/MM/YYYY",min_value = min_date,max_value = max_date, value = datetime.date(2025,8,20))
 
 # FC4: the whole day can be chosen, in steps of 3 minutes like the sensor data
 min_time = datetime.time(0, 0)
 max_time = datetime.time(23, 57)
 
 if "current_time" not in st.session_state:
-    st.session_state.current_time = datetime.time(14, 0)
+    st.session_state.current_time = datetime.time(19, 0)
 if "playing" not in st.session_state:
     st.session_state.playing = False
 
